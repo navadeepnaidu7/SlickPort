@@ -1,4 +1,7 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/motion/entry_reveal.dart';
@@ -9,7 +12,8 @@ class PassportEntryScreen extends ConsumerStatefulWidget {
   const PassportEntryScreen({super.key});
 
   @override
-  ConsumerState<PassportEntryScreen> createState() => _PassportEntryScreenState();
+  ConsumerState<PassportEntryScreen> createState() =>
+      _PassportEntryScreenState();
 }
 
 class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
@@ -19,13 +23,16 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
   late final TextEditingController _dateOfBirthController;
   late final TextEditingController _expiryDateController;
   late final TextEditingController _mrzController;
+  int _modeIndex = 0;
 
   @override
   void initState() {
     super.initState();
     final PassportProfile profile = ref.read(passportDraftProvider);
     _nameController = TextEditingController(text: profile.name);
-    _passportNumberController = TextEditingController(text: profile.passportNumber);
+    _passportNumberController = TextEditingController(
+      text: profile.passportNumber,
+    );
     _nationalityController = TextEditingController(text: profile.nationality);
     _dateOfBirthController = TextEditingController(text: profile.dateOfBirth);
     _expiryDateController = TextEditingController(text: profile.expiryDate);
@@ -44,7 +51,9 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
   }
 
   void _syncDraft() {
-    final PassportDraftController controller = ref.read(passportDraftProvider.notifier);
+    final PassportDraftController controller = ref.read(
+      passportDraftProvider.notifier,
+    );
     controller
       ..updateName(_nameController.text)
       ..updatePassportNumber(_passportNumberController.text)
@@ -54,92 +63,88 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
       ..updateMrzRaw(_mrzController.text);
   }
 
+  void _saveDraft() {
+    _syncDraft();
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) => const _SaveSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
     final PassportProfile profile = ref.watch(passportDraftProvider);
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Passport entry'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-        children: <Widget>[
-          EntryReveal(
-            delay: const Duration(milliseconds: 0),
-            child: _HeroCard(profile: profile),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: _CircleButton(
+            icon: Icons.arrow_back_rounded,
+            onTap: () => Navigator.of(context).pop(),
           ),
-          const SizedBox(height: 20),
-          EntryReveal(
-            delay: const Duration(milliseconds: 120),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        title: const Text(
+          'Capture studio',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        actions: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _CircleButton(icon: Icons.check_rounded, onTap: _saveDraft),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: <Widget>[
+          const _StudioBackdrop(),
+          SafeArea(
+            child: ListView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 72, 20, 30),
               children: <Widget>[
-                Text('Manual details', style: theme.textTheme.titleLarge),
-                const SizedBox(height: 12),
-                _EntryField(
-                  controller: _nameController,
-                  label: 'Full name',
-                  onChanged: (_) => _syncDraft(),
+                EntryReveal(child: _LivePassportPreview(profile: profile)),
+                const SizedBox(height: 18),
+                EntryReveal(
+                  delay: const Duration(milliseconds: 80),
+                  child: _ModeSwitch(
+                    selectedIndex: _modeIndex,
+                    onChanged: (int index) {
+                      setState(() => _modeIndex = index);
+                      HapticFeedback.selectionClick();
+                    },
+                  ),
                 ),
-                const SizedBox(height: 12),
-                _EntryField(
-                  controller: _passportNumberController,
-                  label: 'Passport number',
-                  onChanged: (_) => _syncDraft(),
+                const SizedBox(height: 16),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 360),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: _modeIndex == 0
+                      ? _ManualPanel(
+                          key: const ValueKey<String>('manual'),
+                          nameController: _nameController,
+                          passportNumberController: _passportNumberController,
+                          nationalityController: _nationalityController,
+                          dateOfBirthController: _dateOfBirthController,
+                          expiryDateController: _expiryDateController,
+                          mrzController: _mrzController,
+                          onChanged: _syncDraft,
+                        )
+                      : _ScannerPanel(
+                          key: const ValueKey<String>('scanner'),
+                          onManualTap: () => setState(() => _modeIndex = 0),
+                        ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: _EntryField(
-                        controller: _nationalityController,
-                        label: 'Nationality',
-                        onChanged: (_) => _syncDraft(),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _EntryField(
-                        controller: _dateOfBirthController,
-                        label: 'Date of birth',
-                        hintText: 'YYYY-MM-DD',
-                        onChanged: (_) => _syncDraft(),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _EntryField(
-                  controller: _expiryDateController,
-                  label: 'Expiry date',
-                  hintText: 'YYYY-MM-DD',
-                  onChanged: (_) => _syncDraft(),
-                ),
-                const SizedBox(height: 12),
-                _EntryField(
-                  controller: _mrzController,
-                  label: 'MRZ raw text',
-                  maxLines: 4,
-                  textInputAction: TextInputAction.newline,
-                  onChanged: (_) => _syncDraft(),
+                const SizedBox(height: 18),
+                EntryReveal(
+                  delay: const Duration(milliseconds: 160),
+                  child: _SaveButton(onTap: _saveDraft),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          EntryReveal(
-            delay: const Duration(milliseconds: 220),
-            child: FilledButton.icon(
-              onPressed: () {
-                _syncDraft();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Passport draft saved locally in memory.')),
-                );
-              },
-              icon: const Icon(Icons.save_rounded),
-              label: const Text('Save draft'),
             ),
           ),
         ],
@@ -148,72 +153,202 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
   }
 }
 
-class _HeroCard extends StatelessWidget {
-  const _HeroCard({required this.profile});
+class _StudioBackdrop extends StatelessWidget {
+  const _StudioBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            Color(0xFFEFF4F9),
+            Color(0xFFF8FAFC),
+            Color(0xFFEDE7DD),
+          ],
+        ),
+      ),
+      child: SizedBox.expand(child: CustomPaint(painter: _StudioPainter())),
+    );
+  }
+}
+
+class _StudioPainter extends CustomPainter {
+  const _StudioPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = const Color(0x1207111F)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    for (int i = 0; i < 12; i++) {
+      final double top = 86 + i * 34;
+      final Rect rect = Rect.fromLTWH(
+        18 + i * 3,
+        top,
+        size.width - 36 - i * 6,
+        22,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(18)),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _LivePassportPreview extends StatelessWidget {
+  const _LivePassportPreview({required this.profile});
 
   final PassportProfile profile;
 
   @override
   Widget build(BuildContext context) {
-    final bool hasName = profile.name.trim().isNotEmpty;
-    final String displayName = hasName ? profile.name : 'Add a passport profile';
+    final String name = profile.name.trim().isEmpty
+        ? 'Add a passport profile'
+        : profile.name;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      height: 238,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFF111827), Color(0xFF2653FF), Color(0xFF0F172A)],
-        ),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(color: Color(0x22000000), blurRadius: 30, offset: Offset(0, 18)),
+        borderRadius: BorderRadius.circular(34),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: const Color(0xFF07111F).withValues(alpha: 0.18),
+            blurRadius: 34,
+            offset: const Offset(0, 22),
+          ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Column(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(34),
+        child: Stack(
+          children: <Widget>[
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[
+                      Color(0xFF07111F),
+                      Color(0xFF315CFF),
+                      Color(0xFF19D3C5),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned.fill(child: CustomPaint(painter: _PreviewPainter())),
+            Positioned(
+              left: 20,
+              top: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'LIVE PREVIEW',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 20,
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Live preview', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70)),
-                  const SizedBox(height: 6),
                   Text(
-                    displayName,
+                    name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
+                      fontSize: 25,
+                      height: 1,
+                      fontWeight: FontWeight.w800,
                     ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _PreviewField(
+                          label: 'Passport',
+                          value: profile.passportNumber.isEmpty
+                              ? 'Pending'
+                              : profile.passportNumber,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _PreviewField(
+                          label: 'Nationality',
+                          value: profile.nationality.isEmpty
+                              ? '--'
+                              : profile.nationality,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const Icon(Icons.badge_rounded, color: Colors.white, size: 30),
-            ],
-          ),
-          const SizedBox(height: 18),
-          _DetailChip(label: 'Passport', value: profile.passportNumber.isEmpty ? 'Pending' : profile.passportNumber),
-          const SizedBox(height: 10),
-          Row(
-            children: <Widget>[
-              Expanded(child: _DetailChip(label: 'Nationality', value: profile.nationality.isEmpty ? '--' : profile.nationality)),
-              const SizedBox(width: 10),
-              Expanded(child: _DetailChip(label: 'DOB', value: profile.dateOfBirth.isEmpty ? '--' : profile.dateOfBirth)),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _DetailChip extends StatelessWidget {
-  const _DetailChip({required this.label, required this.value});
+class _PreviewPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.12)
+      ..strokeWidth = 1.1
+      ..style = PaintingStyle.stroke;
+
+    for (int i = 0; i < 7; i++) {
+      final Path path = Path();
+      final double y = 58 + i * 19;
+      path.moveTo(-20, y);
+      path.cubicTo(
+        size.width * 0.24,
+        y + 24,
+        size.width * 0.62,
+        y - 28,
+        size.width + 18,
+        y + 8,
+      );
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _PreviewField extends StatelessWidget {
+  const _PreviewField({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -221,27 +356,325 @@ class _DetailChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(18),
+        color: Colors.white.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(label, style: const TextStyle(color: Colors.white60, fontSize: 12)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white60, fontSize: 11),
+          ),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _EntryField extends StatelessWidget {
-  const _EntryField({
+class _ModeSwitch extends StatelessWidget {
+  const _ModeSwitch({required this.selectedIndex, required this.onChanged});
+
+  final int selectedIndex;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.74),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white),
+      ),
+      child: Row(
+        children: <Widget>[
+          _ModeOption(
+            label: 'Manual',
+            icon: Icons.edit_note_rounded,
+            selected: selectedIndex == 0,
+            onTap: () => onChanged(0),
+          ),
+          _ModeOption(
+            label: 'Scanner',
+            icon: Icons.center_focus_strong_rounded,
+            selected: selectedIndex == 1,
+            onTap: () => onChanged(1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeOption extends StatelessWidget {
+  const _ModeOption({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: _TapScale(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF07111F) : Colors.transparent,
+            borderRadius: BorderRadius.circular(19),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(
+                icon,
+                color: selected ? Colors.white : const Color(0xFF64748B),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : const Color(0xFF64748B),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ManualPanel extends StatelessWidget {
+  const _ManualPanel({
+    super.key,
+    required this.nameController,
+    required this.passportNumberController,
+    required this.nationalityController,
+    required this.dateOfBirthController,
+    required this.expiryDateController,
+    required this.mrzController,
+    required this.onChanged,
+  });
+
+  final TextEditingController nameController;
+  final TextEditingController passportNumberController;
+  final TextEditingController nationalityController;
+  final TextEditingController dateOfBirthController;
+  final TextEditingController expiryDateController;
+  final TextEditingController mrzController;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassPanel(
+      child: Column(
+        children: <Widget>[
+          _StudioField(
+            controller: nameController,
+            label: 'Full name',
+            icon: Icons.person_rounded,
+            onChanged: onChanged,
+          ),
+          _StudioField(
+            controller: passportNumberController,
+            label: 'Passport number',
+            icon: Icons.confirmation_number_rounded,
+            onChanged: onChanged,
+          ),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _StudioField(
+                  controller: nationalityController,
+                  label: 'Nationality',
+                  icon: Icons.flag_rounded,
+                  onChanged: onChanged,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _StudioField(
+                  controller: dateOfBirthController,
+                  label: 'Date of birth',
+                  hintText: 'YYYY-MM-DD',
+                  icon: Icons.cake_rounded,
+                  onChanged: onChanged,
+                ),
+              ),
+            ],
+          ),
+          _StudioField(
+            controller: expiryDateController,
+            label: 'Expiry date',
+            hintText: 'YYYY-MM-DD',
+            icon: Icons.event_available_rounded,
+            onChanged: onChanged,
+          ),
+          _StudioField(
+            controller: mrzController,
+            label: 'MRZ raw text',
+            icon: Icons.subject_rounded,
+            maxLines: 4,
+            textInputAction: TextInputAction.newline,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScannerPanel extends StatelessWidget {
+  const _ScannerPanel({super.key, required this.onManualTap});
+
+  final VoidCallback onManualTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassPanel(
+      child: Column(
+        children: <Widget>[
+          Container(
+            height: 210,
+            decoration: BoxDecoration(
+              color: const Color(0xFF07111F),
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: Stack(
+              children: <Widget>[
+                const Positioned.fill(child: _ScannerFrame()),
+                Center(
+                  child: Container(
+                    width: 172,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 34,
+                  right: 34,
+                  top: 101,
+                  child: Container(
+                    height: 3,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      color: const Color(0xFF19D3C5),
+                      boxShadow: const <BoxShadow>[
+                        BoxShadow(color: Color(0x9919D3C5), blurRadius: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Scanner preview',
+            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'The camera and OCR integration will land here. Until then, the manual studio keeps the same data contract.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFF64748B), height: 1.4),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: onManualTap,
+            icon: const Icon(Icons.edit_rounded),
+            label: const Text('Use manual entry'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScannerFrame extends StatelessWidget {
+  const _ScannerFrame();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(painter: _ScannerPainter());
+  }
+}
+
+class _ScannerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint grid = Paint()
+      ..color = Colors.white.withValues(alpha: 0.08)
+      ..strokeWidth = 1;
+    for (double y = 22; y < size.height; y += 24) {
+      canvas.drawLine(Offset(18, y), Offset(size.width - 18, y), grid);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _GlassPanel extends StatelessWidget {
+  const _GlassPanel({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(30),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.74),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.white),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _StudioField extends StatefulWidget {
+  const _StudioField({
     required this.controller,
     required this.label,
+    required this.icon,
     required this.onChanged,
     this.hintText,
     this.maxLines = 1,
@@ -250,21 +683,235 @@ class _EntryField extends StatelessWidget {
 
   final TextEditingController controller;
   final String label;
-  final ValueChanged<String> onChanged;
+  final IconData icon;
+  final VoidCallback onChanged;
   final String? hintText;
   final int maxLines;
   final TextInputAction? textInputAction;
 
   @override
+  State<_StudioField> createState() => _StudioFieldState();
+}
+
+class _StudioFieldState extends State<_StudioField> {
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode()..addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      textInputAction: textInputAction,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hintText,
+    final bool focused = _focusNode.hasFocus;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: focused ? Colors.white : Colors.white.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: focused
+              ? const Color(0xFF4C7CFF)
+              : Colors.white.withValues(alpha: 0.72),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: widget.maxLines > 1
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
+        children: <Widget>[
+          Padding(
+            padding: EdgeInsets.only(top: widget.maxLines > 1 ? 16 : 0),
+            child: Icon(
+              widget.icon,
+              color: focused
+                  ? const Color(0xFF4C7CFF)
+                  : const Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              focusNode: _focusNode,
+              controller: widget.controller,
+              maxLines: widget.maxLines,
+              textInputAction: widget.textInputAction,
+              onChanged: (_) => widget.onChanged(),
+              decoration: InputDecoration(
+                labelText: widget.label,
+                hintText: widget.hintText,
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SaveButton extends StatelessWidget {
+  const _SaveButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _TapScale(
+      onTap: onTap,
+      child: Container(
+        height: 58,
+        decoration: BoxDecoration(
+          color: const Color(0xFF07111F),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: const Color(0xFF07111F).withValues(alpha: 0.22),
+              blurRadius: 24,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(Icons.save_rounded, color: Colors.white),
+            SizedBox(width: 10),
+            Text(
+              'Save draft',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CircleButton extends StatelessWidget {
+  const _CircleButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _TapScale(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white),
+            ),
+            child: Icon(icon, color: const Color(0xFF07111F)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SaveSheet extends StatelessWidget {
+  const _SaveSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(14),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+        decoration: BoxDecoration(
+          color: const Color(0xFF07111F),
+          borderRadius: BorderRadius.circular(32),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: const Color(0xFF19D3C5).withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                color: Color(0xFF19D3C5),
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Draft updated',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Your local passport profile is refreshed in memory.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TapScale extends StatefulWidget {
+  const _TapScale({required this.child, required this.onTap});
+
+  final Widget child;
+  final VoidCallback onTap;
+
+  @override
+  State<_TapScale> createState() => _TapScaleState();
+}
+
+class _TapScaleState extends State<_TapScale> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _pressed ? 0.96 : 1,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutCubic,
+        child: widget.child,
       ),
     );
   }

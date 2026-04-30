@@ -11,11 +11,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slickport/app.dart';
 
 void main() {
-  testWidgets('App boots into the dashboard shell', (WidgetTester tester) async {
+  testWidgets('App boots through onboarding into the dashboard shell', (
+    WidgetTester tester,
+  ) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const ProviderScope(child: SlickPortApp()));
 
-    expect(find.text('SlickPort'), findsOneWidget);
+    expect(find.text('SlickPort'), findsWidgets);
+    expect(find.text('Continue'), findsOneWidget);
+
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Enter SlickPort'));
+    await tester.pumpAndSettle();
+
     expect(find.text('Scan MRZ'), findsOneWidget);
     expect(find.text('Read chip'), findsOneWidget);
   });
