@@ -23,9 +23,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body:
           'Capture identity details into a refined local workspace built for clarity and speed.',
       icon: Icons.auto_awesome_rounded,
-      primary: Color(0xFF101827),
-      accent: Color(0xFF4C7CFF),
-      secondary: Color(0xFF19D3C5),
+      primary: Color(0xFF0B1B34),
+      accent: Color(0xFFC9A760),
+      secondary: Color(0xFF2F9B9B),
     ),
     _OnboardingStep(
       eyebrow: 'MRZ capture',
@@ -33,9 +33,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body:
           'The camera flow is shaped around the machine readable zone, ready for OCR integration.',
       icon: Icons.document_scanner_rounded,
-      primary: Color(0xFF14213D),
-      accent: Color(0xFFFFB703),
-      secondary: Color(0xFF2EC4B6),
+      primary: Color(0xFF111F36),
+      accent: Color(0xFFD3B77A),
+      secondary: Color(0xFF5FA7A0),
     ),
     _OnboardingStep(
       eyebrow: 'Chip ready',
@@ -43,9 +43,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body:
           'MRZ-derived access keys prepare the secure chip read while sensitive data stays offline.',
       icon: Icons.nfc_rounded,
-      primary: Color(0xFF0B132B),
-      accent: Color(0xFF6FFFE9),
-      secondary: Color(0xFFFF5A5F),
+      primary: Color(0xFF0E1A2D),
+      accent: Color(0xFF3DC7B3),
+      secondary: Color(0xFFD7B25A),
     ),
   ];
 
@@ -363,7 +363,7 @@ class _GlassHalo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+      imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
       child: Container(
         height: 230,
         decoration: BoxDecoration(
@@ -407,7 +407,7 @@ class _PassportBook extends StatelessWidget {
         boxShadow: <BoxShadow>[
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.32),
-            blurRadius: 34,
+            blurRadius: 24,
             offset: const Offset(0, 24),
           ),
         ],
@@ -415,7 +415,7 @@ class _PassportBook extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(34),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(

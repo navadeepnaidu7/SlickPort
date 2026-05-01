@@ -222,7 +222,7 @@ class _LivePassportPreview extends StatelessWidget {
         boxShadow: <BoxShadow>[
           BoxShadow(
             color: const Color(0xFF07111F).withValues(alpha: 0.18),
-            blurRadius: 34,
+            blurRadius: 24,
             offset: const Offset(0, 22),
           ),
         ],
@@ -655,7 +655,7 @@ class _GlassPanel extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -780,7 +780,7 @@ class _SaveButton extends StatelessWidget {
           boxShadow: <BoxShadow>[
             BoxShadow(
               color: const Color(0xFF07111F).withValues(alpha: 0.22),
-              blurRadius: 24,
+              blurRadius: 18,
               offset: const Offset(0, 14),
             ),
           ],
@@ -818,7 +818,7 @@ class _CircleButton extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
           child: Container(
             width: 44,
             height: 44,

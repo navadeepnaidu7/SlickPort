@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color _ink = Color(0xFF07111F);
-  static const Color _blue = Color(0xFF4C7CFF);
-  static const Color _teal = Color(0xFF19D3C5);
-  static const Color _surface = Color(0xFFF5F7FB);
+  static const Color _ink = Color(0xFF0B1B34);
+  static const Color _blue = Color(0xFF1F3A60);
+  static const Color _teal = Color(0xFFC9A760);
+  static const Color _surface = Color(0xFFF6F2EA);
 
   static ThemeData get lightTheme {
     final ColorScheme scheme = ColorScheme.fromSeed(
@@ -41,7 +41,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: const Color(0xFFF2F5FA),
+      scaffoldBackgroundColor: const Color(0xFFF5F1E9),
       textTheme: textTheme,
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
