@@ -40,7 +40,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _entryCtrl,
-      curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
+      curve: const Interval(0.0, 0.8, curve: Curves.easeOutQuart),
     ));
     _entryCtrl.forward();
   }
@@ -103,6 +103,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
+  void _showDeleteDialog(PassportProfile profile) {
+    HapticFeedback.heavyImpact();
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Remove Passport?'),
+          content: Text('Are you sure you want to remove ${profile.name}\'s passport from your wallet?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                ref.read(passportListProvider.notifier).removePassport(profile.passportNumber);
+                Navigator.of(ctx).pop();
+              },
+              child: const Text('Remove', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<PassportProfile> passports = ref.watch(passportListProvider);
@@ -152,8 +179,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                     }(),
                                     style: const TextStyle(
                                       color: Color(0xFF8E8E93),
-                                      fontSize: 14,
+                                      fontSize: 16,
                                       fontWeight: FontWeight.w600,
+                                      letterSpacing: -0.2,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -161,9 +189,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                     currentName.isEmpty ? 'User' : currentName.split(' ').first,
                                     style: const TextStyle(
                                       color: Color(0xFF1C1C1E),
-                                      fontSize: 22,
+                                      fontSize: 32,
                                       fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.5,
+                                      letterSpacing: -1.2,
                                     ),
                                   ),
                                 ],
@@ -195,36 +223,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                             }
 
                             final profile = passports[index];
-                            return Dismissible(
-                              key: Key(profile.passportNumber),
-                              direction: DismissDirection.up,
-                              background: Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(bottom: 200),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.withValues(alpha: 0.1),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(Icons.delete_outline, color: Colors.red, size: 32),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      const Text('Swipe up to delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              onDismissed: (_) {
-                                ref.read(passportListProvider.notifier).removePassport(profile.passportNumber);
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-                                child: Center(
-                                  child: WalletPassportCard(profile: profile),
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+                              child: Center(
+                                child: WalletPassportCard(
+                                  profile: profile,
+                                  onLongPress: () => _showDeleteDialog(profile),
                                 ),
                               ),
                             );

@@ -10,9 +10,14 @@ import '../../passport/domain/passport_profile.dart';
 
 /// Portrait-style Indian Passport card with 3D tilt & single-tap flip.
 class WalletPassportCard extends StatefulWidget {
-  const WalletPassportCard({super.key, required this.profile});
+  const WalletPassportCard({
+    super.key,
+    required this.profile,
+    this.onLongPress,
+  });
 
   final PassportProfile profile;
+  final VoidCallback? onLongPress;
 
   @override
   State<WalletPassportCard> createState() => _WalletPassportCardState();
@@ -31,8 +36,6 @@ class _WalletPassportCardState extends State<WalletPassportCard>
   bool _touching = false;
   bool _dragging = false;
 
-  // -- shimmer --
-  late final AnimationController _shimmerCtrl;
 
   // -- tap glow pulse --
   late final AnimationController _pulseCtrl;
@@ -42,17 +45,13 @@ class _WalletPassportCardState extends State<WalletPassportCard>
     super.initState();
     _flipCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 550),
+      duration: const Duration(milliseconds: 500),
     );
     _flipAnim = CurvedAnimation(
       parent: _flipCtrl,
-      curve: Curves.easeInOutSine,
+      curve: Curves.easeInOutCubic,
     );
 
-    _shimmerCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2800),
-    )..repeat();
 
     _pulseCtrl = AnimationController(
       vsync: this,
@@ -63,7 +62,7 @@ class _WalletPassportCardState extends State<WalletPassportCard>
   @override
   void dispose() {
     _flipCtrl.dispose();
-    _shimmerCtrl.dispose();
+
     _pulseCtrl.dispose();
     super.dispose();
   }
@@ -117,7 +116,14 @@ class _WalletPassportCardState extends State<WalletPassportCard>
       height: cardHeight,
       width: double.infinity,
       child: GestureDetector(
-        onTap: _handleTap,
+        onTap: () {
+          HapticFeedback.lightImpact();
+          _handleTap();
+        },
+        onLongPress: () {
+          HapticFeedback.heavyImpact();
+          widget.onLongPress?.call();
+        },
         onPanStart: _onPanStart,
         onPanUpdate: _onPanUpdate,
         onPanEnd: _onPanEnd,
@@ -145,24 +151,36 @@ class _WalletPassportCardState extends State<WalletPassportCard>
                     transform: Matrix4.identity()
                       ..rotateX(_tiltX * 0.14)
                       ..rotateY(_tiltY * 0.14),
-                    child: isBack
-                        ? Transform(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Back (rotated to face away)
+                        Opacity(
+                          opacity: isBack ? 1.0 : 0.0,
+                          child: Transform(
                             alignment: Alignment.center,
                             transform: Matrix4.rotationY(math.pi),
                             child: RepaintBoundary(
                               child: _CardBack(
                                 profile: widget.profile,
-                                shimmerCtrl: _shimmerCtrl,
+                                tiltY: _tiltY,
                               ),
                             ),
-                          )
-                        : RepaintBoundary(
+                          ),
+                        ),
+                        // Front
+                        Opacity(
+                          opacity: isBack ? 0.0 : 1.0,
+                          child: RepaintBoundary(
                             child: _CardFront(
                               profile: widget.profile,
-                              shimmerCtrl: _shimmerCtrl,
+                              tiltY: _tiltY,
                               pulseCtrl: _pulseCtrl,
                             ),
                           ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -177,12 +195,12 @@ class _WalletPassportCardState extends State<WalletPassportCard>
 class _CardFront extends StatelessWidget {
   const _CardFront({
     required this.profile,
-    required this.shimmerCtrl,
+    required this.tiltY,
     required this.pulseCtrl,
   });
 
   final PassportProfile profile;
-  final AnimationController shimmerCtrl;
+  final double tiltY;
   final AnimationController pulseCtrl;
 
   @override
@@ -195,35 +213,41 @@ class _CardFront extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(45),
+        borderRadius: BorderRadius.circular(40),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: const Color(0xFF0D1B2A).withValues(alpha: 0.55),
-            blurRadius: 48,
-            spreadRadius: -4,
-            offset: const Offset(0, 20),
+            color: const Color(0xFF000000).withValues(alpha: 0.28),
+            blurRadius: 40,
+            spreadRadius: -6,
+            offset: const Offset(0, 24),
           ),
           BoxShadow(
-            color: const Color(0xFF4C7CFF).withValues(alpha: 0.12),
-            blurRadius: 32,
-            offset: const Offset(0, 8),
+            color: const Color(0xFF000000).withValues(alpha: 0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+          // Subtle glow mimicking gloss
+          BoxShadow(
+            color: const Color(0xFFFFFFFF).withValues(alpha: 0.08),
+            blurRadius: 1,
+            spreadRadius: 1,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(45),
+        borderRadius: BorderRadius.circular(40),
         child: Stack(
           children: <Widget>[
             // — base gradient (deep navy, passport-like) —
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                   colors: <Color>[
-                    Color(0xFF0C1A35),
-                    Color(0xFF111E3E),
-                    Color(0xFF0A1625),
+                    Color(0xFF14244B),
+                    Color(0xFF0A1226),
                   ],
                 ),
               ),
@@ -236,31 +260,23 @@ class _CardFront extends StatelessWidget {
             const Positioned.fill(child: CustomPaint(painter: _SecurityLinePainter())),
 
             // — shimmer overlay —
-            AnimatedBuilder(
-              animation: shimmerCtrl,
-              builder: (context, _) {
-                return Positioned.fill(
-                  child: ShaderMask(
-                    shaderCallback: (Rect rect) {
-                      final double dx =
-                          shimmerCtrl.value * rect.width * 2.2 - rect.width;
-                      return LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: const <Color>[
-                          Colors.transparent,
-                          Color(0x14FFFFFF),
-                          Colors.transparent,
-                        ],
-                        stops: const <double>[0.0, 0.5, 1.0],
-                        transform: _SlideGradient(dx),
-                      ).createShader(rect);
-                    },
-                    blendMode: BlendMode.srcATop,
-                    child: Container(color: Colors.white.withValues(alpha: 0.04)),
+            // — dynamic interactive shimmer —
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: const <Color>[
+                      Colors.transparent,
+                      Color(0x18FFFFFF),
+                      Colors.transparent,
+                    ],
+                    stops: const <double>[0.0, 0.5, 1.0],
+                    transform: _SlideGradient(tiltY * 1200),
                   ),
-                );
-              },
+                ),
+              ),
             ),
 
             // — tricolor top strip —
@@ -287,12 +303,12 @@ class _CardFront extends StatelessWidget {
                 const SizedBox(height: 6), // tricolor strip
                 // top header row
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 16, 22, 0),
+                  padding: const EdgeInsets.fromLTRB(26, 20, 26, 0),
                   child: Row(
                     children: <Widget>[
                       SizedBox(
-                        width: 28,
-                        height: 28,
+                        width: 32,
+                        height: 32,
                         child: SvgPicture.asset(
                           'assets/identity/Emblem_of_India.svg',
                           colorFilter: const ColorFilter.mode(
@@ -301,7 +317,7 @@ class _CardFront extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 14),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const <Widget>[
@@ -309,19 +325,19 @@ class _CardFront extends StatelessWidget {
                             'REPUBLIC OF INDIA',
                             style: TextStyle(
                               color: Color(0xFFD4A843),
-                              fontSize: 9,
+                              fontSize: 9.5,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 2.2,
+                              letterSpacing: 2.4,
                             ),
                           ),
-                          SizedBox(height: 1),
+                          SizedBox(height: 2),
                           Text(
                             'PASSPORT',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 15,
+                              fontSize: 17,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 3.5,
+                              letterSpacing: 4.0,
                             ),
                           ),
                         ],
@@ -341,7 +357,7 @@ class _CardFront extends StatelessWidget {
 
                 // — bottom details —
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(26, 0, 26, 0),
+                  padding: const EdgeInsets.fromLTRB(30, 0, 30, 0),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: <Widget>[
@@ -350,12 +366,12 @@ class _CardFront extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(
-                              'PASSPORT HOLDER',
+                              'NAME',
                               style: TextStyle(
-                                color: const Color(0xFFD4A843).withValues(alpha: 0.9),
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 2.0,
+                                color: const Color(0xFFD4A843).withValues(alpha: 0.95),
+                                fontSize: 9.0,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 2.2,
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -365,19 +381,19 @@ class _CardFront extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 24,
+                                fontSize: 26,
                                 fontWeight: FontWeight.w800,
-                                letterSpacing: 1.0,
+                                letterSpacing: 0.5,
                               ),
                             ),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 22),
                             Text(
                               'PASSPORT NO.',
                               style: TextStyle(
-                                color: const Color(0xFFD4A843).withValues(alpha: 0.9),
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 2.0,
+                                color: const Color(0xFFD4A843).withValues(alpha: 0.95),
+                                fontSize: 9.0,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 2.2,
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -385,30 +401,13 @@ class _CardFront extends StatelessWidget {
                               number,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 16,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w700,
-                                letterSpacing: 2.0,
+                                letterSpacing: 2.5,
                                 fontFamily: 'monospace',
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                      // Sleek biometric fingerprint accent
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD4A843).withValues(alpha: 0.08),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFFD4A843).withValues(alpha: 0.25),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.fingerprint_rounded,
-                          color: const Color(0xFFD4A843).withValues(alpha: 0.85),
-                          size: 26,
                         ),
                       ),
                     ],
@@ -451,25 +450,21 @@ class _CardFront extends StatelessWidget {
 // ─── BACK SIDE ───────────────────────────────────────────────────────────────
 
 class _CardBack extends StatelessWidget {
-  const _CardBack({required this.profile, required this.shimmerCtrl});
+  const _CardBack({required this.profile, required this.tiltY});
 
   final PassportProfile profile;
-  final AnimationController shimmerCtrl;
+  final double tiltY;
 
   @override
   Widget build(BuildContext context) {
-    final String dob =
-        profile.dateOfBirth.isEmpty ? 'N/A' : profile.dateOfBirth;
-    final String expiry =
-        profile.expiryDate.isEmpty ? 'N/A' : profile.expiryDate;
-    final String nationality =
-        profile.nationality.isEmpty ? 'N/A' : profile.nationality;
-    final String gender = 
-        profile.gender.isEmpty ? 'N/A' : profile.gender;
-    final String placeOfBirth = 
-        profile.placeOfBirth.isEmpty ? 'N/A' : profile.placeOfBirth;
-    final String issueDate = 
-        profile.issueDate.isEmpty ? 'N/A' : profile.issueDate;
+    final String fullName = profile.name.trim().isEmpty ? 'N/A' : profile.name.toUpperCase();
+    final String dob = profile.dateOfBirth.isEmpty ? 'N/A' : profile.dateOfBirth;
+    final String expiry = profile.expiryDate.isEmpty ? 'N/A' : profile.expiryDate;
+    final String nationality = profile.nationality.isEmpty ? 'N/A' : profile.nationality;
+    final String gender = profile.gender.isEmpty ? 'N/A' : profile.gender;
+    final String placeOfBirth = profile.placeOfBirth.isEmpty ? 'N/A' : profile.placeOfBirth;
+    final String issueDate = profile.issueDate.isEmpty ? 'N/A' : profile.issueDate;
+    final String issuingAuthority = profile.issuingAuthority.isEmpty ? 'N/A' : profile.issuingAuthority;
         
     final String mrz = profile.mrzRaw.trim().isEmpty
         ? 'P<IND<<HOLDER<<NAME<<<<<<<<<<<<<<<<<<<<<\nA123456780IND9001011M3501011<<<<<<<<<<<04'
@@ -477,30 +472,41 @@ class _CardBack extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(45),
+        borderRadius: BorderRadius.circular(40),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: const Color(0xFF0D1B2A).withValues(alpha: 0.55),
-            blurRadius: 48,
-            spreadRadius: -4,
-            offset: const Offset(0, 20),
+            color: const Color(0xFF000000).withValues(alpha: 0.28),
+            blurRadius: 40,
+            spreadRadius: -6,
+            offset: const Offset(0, 24),
+          ),
+          BoxShadow(
+            color: const Color(0xFF000000).withValues(alpha: 0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+          // Subtle glow
+          BoxShadow(
+            color: const Color(0xFFFFFFFF).withValues(alpha: 0.08),
+            blurRadius: 1,
+            spreadRadius: 1,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(45),
+        borderRadius: BorderRadius.circular(40),
         child: Stack(
           children: <Widget>[
             // — background —
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topRight,
-                  end: Alignment.bottomLeft,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                   colors: <Color>[
-                    Color(0xFF0A1625),
-                    Color(0xFF111E3E),
-                    Color(0xFF0C1A35),
+                    Color(0xFF14244B),
+                    Color(0xFF0A1226),
                   ],
                 ),
               ),
@@ -510,31 +516,23 @@ class _CardBack extends StatelessWidget {
             const Positioned.fill(child: CustomPaint(painter: _SecurityLinePainter())),
 
             // shimmer
-            AnimatedBuilder(
-              animation: shimmerCtrl,
-              builder: (context, _) {
-                return Positioned.fill(
-                  child: ShaderMask(
-                    shaderCallback: (Rect rect) {
-                      final double dx =
-                          shimmerCtrl.value * rect.width * 2.2 - rect.width;
-                      return LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: const <Color>[
-                          Colors.transparent,
-                          Color(0x10FFFFFF),
-                          Colors.transparent,
-                        ],
-                        stops: const <double>[0.0, 0.5, 1.0],
-                        transform: _SlideGradient(dx),
-                      ).createShader(rect);
-                    },
-                    blendMode: BlendMode.srcATop,
-                    child: Container(color: Colors.white.withValues(alpha: 0.03)),
+            // — dynamic interactive shimmer —
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: const <Color>[
+                      Colors.transparent,
+                      Color(0x18FFFFFF),
+                      Colors.transparent,
+                    ],
+                    stops: const <double>[0.0, 0.5, 1.0],
+                    transform: _SlideGradient(tiltY * 1200),
                   ),
-                );
-              },
+                ),
+              ),
             ),
 
             // — tricolor bottom strip —
@@ -556,7 +554,7 @@ class _CardBack extends StatelessWidget {
 
             // — content —
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+              padding: const EdgeInsets.fromLTRB(28, 26, 28, 26),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -564,8 +562,8 @@ class _CardBack extends StatelessWidget {
                   Row(
                     children: <Widget>[
                       SizedBox(
-                        width: 22,
-                        height: 22,
+                        width: 24,
+                        height: 24,
                         child: SvgPicture.asset(
                           'assets/identity/Emblem_of_India.svg',
                           colorFilter: const ColorFilter.mode(
@@ -574,14 +572,14 @@ class _CardBack extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       const Text(
                         'PERSONAL DETAILS',
                         style: TextStyle(
                           color: Color(0xFFD4A843),
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 2.2,
+                          letterSpacing: 2.4,
                         ),
                       ),
                     ],
@@ -595,24 +593,24 @@ class _CardBack extends StatelessWidget {
                     children: <Widget>[
                       // NFC Photo Placeholder
                       Container(
-                        width: 90,
-                        height: 120,
+                        width: 100,
+                        height: 130,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            width: 1,
+                            color: Colors.white.withValues(alpha: 0.12),
+                            width: 1.2,
                           ),
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
                           child: profile.imagePath.isNotEmpty
                               ? Image.memory(
                                   base64Decode(profile.imagePath),
                                   fit: BoxFit.cover,
-                                  width: 90,
-                                  height: 120,
+                                  width: 100,
+                                  height: 130,
                                 )
                               : Center(
                                   child: Column(
@@ -620,18 +618,18 @@ class _CardBack extends StatelessWidget {
                                     children: [
                                       Icon(
                                         Icons.nfc_rounded,
-                                        color: Colors.white.withValues(alpha: 0.25),
-                                        size: 28,
+                                        color: Colors.white.withValues(alpha: 0.28),
+                                        size: 32,
                                       ),
-                                      const SizedBox(height: 6),
+                                      const SizedBox(height: 8),
                                       Text(
                                         'NFC\nPHOTO',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.25),
-                                          fontSize: 8,
+                                          color: Colors.white.withValues(alpha: 0.28),
+                                          fontSize: 9,
                                           fontWeight: FontWeight.w700,
-                                          letterSpacing: 1.0,
+                                          letterSpacing: 1.2,
                                         ),
                                       ),
                                     ],
@@ -639,33 +637,37 @@ class _CardBack extends StatelessWidget {
                                 ),
                         ),
                       ),
-                      const SizedBox(width: 20),
+                      const SizedBox(width: 18),
                       // Fields
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
+                            _BackField(label: 'FULL NAME', value: fullName),
+                            const SizedBox(height: 14),
                             Row(
                               children: <Widget>[
-                                Expanded(child: _BackField(label: 'DOB', value: dob)),
-                                Expanded(child: _BackField(label: 'EXPIRY', value: expiry)),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: <Widget>[
-                                Expanded(child: _BackField(label: 'NATIONALITY', value: nationality)),
                                 Expanded(child: _BackField(label: 'GENDER', value: gender)),
                               ],
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 14),
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
+                                Expanded(child: _BackField(label: 'DOB', value: dob)),
                                 Expanded(child: _BackField(label: 'PLACE OF BIRTH', value: placeOfBirth)),
-                                Expanded(child: _BackField(label: 'ISSUE DATE', value: issueDate)),
                               ],
                             ),
+                            const SizedBox(height: 14),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Expanded(child: _BackField(label: 'ISSUE DATE', value: issueDate)),
+                                Expanded(child: _BackField(label: 'EXPIRY DATE', value: expiry)),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            _BackField(label: 'ISSUING AUTHORITY', value: issuingAuthority),
                           ],
                         ),
                       ),
@@ -681,22 +683,23 @@ class _CardBack extends StatelessWidget {
                       Text(
                         'MACHINE READABLE ZONE',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.35),
-                          fontSize: 9,
+                          color: Colors.white.withValues(alpha: 0.4),
+                          fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          letterSpacing: 1.8,
+                          letterSpacing: 2.0,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
+                            horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.32),
-                          borderRadius: BorderRadius.circular(10),
+                          color: Colors.black.withValues(alpha: 0.38),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.07),
+                            color: Colors.white.withValues(alpha: 0.08),
+                            width: 1.2,
                           ),
                         ),
                         child: Text(
@@ -704,19 +707,19 @@ class _CardBack extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: const Color(0xFF8BAFC4).withValues(alpha: 0.85),
-                            fontSize: 9.5,
+                            color: const Color(0xFF8BAFC4).withValues(alpha: 0.9),
+                            fontSize: 10.5,
                             fontFamily: 'monospace',
                             fontWeight: FontWeight.w600,
-                            letterSpacing: 0.8,
-                            height: 1.7,
+                            letterSpacing: 1.2,
+                            height: 1.8,
                           ),
                         ),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
                   // tap-to-flip hint
                   Center(
@@ -725,16 +728,17 @@ class _CardBack extends StatelessWidget {
                       children: <Widget>[
                         Icon(
                           Icons.credit_card_rounded,
-                          color: Colors.white.withValues(alpha: 0.28),
-                          size: 13,
+                          color: Colors.white.withValues(alpha: 0.32),
+                          size: 14,
                         ),
-                        const SizedBox(width: 7),
+                        const SizedBox(width: 8),
                         Text(
                           'Tap to flip back',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.28),
-                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.32),
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
+                            letterSpacing: 0.2,
                           ),
                         ),
                       ],
@@ -861,19 +865,20 @@ class _BackField extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.38),
-            fontSize: 9,
+            color: Colors.white.withValues(alpha: 0.42),
+            fontSize: 10,
             fontWeight: FontWeight.w700,
-            letterSpacing: 1.4,
+            letterSpacing: 1.6,
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 6),
         Text(
           value,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
           ),
         ),
       ],

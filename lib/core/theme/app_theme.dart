@@ -22,19 +22,32 @@ class AppTheme {
       displaySmall: GoogleFonts.inter(
         fontSize: 32,
         fontWeight: FontWeight.w700,
-        letterSpacing: -0.8,
+        letterSpacing: -1.2,
         color: _ink,
       ),
       titleLarge: GoogleFonts.inter(
-        fontSize: 20,
+        fontSize: 22,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.6,
+        color: _ink,
+      ),
+      titleMedium: GoogleFonts.inter(
+        fontSize: 18,
         fontWeight: FontWeight.w700,
-        letterSpacing: -0.2,
+        letterSpacing: -0.4,
         color: _ink,
       ),
       bodyMedium: GoogleFonts.inter(
         fontSize: 15,
         height: 1.45,
-        color: _ink.withValues(alpha: 0.82),
+        letterSpacing: -0.15,
+        color: _ink.withValues(alpha: 0.8),
+      ),
+      labelSmall: GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.4,
+        color: _ink.withValues(alpha: 0.5),
       ),
     );
 
