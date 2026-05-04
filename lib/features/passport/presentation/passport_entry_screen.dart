@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/motion/entry_reveal.dart';
+import '../../mrz_scanner/domain/mrz_result.dart';
+import '../../mrz_scanner/presentation/mrz_scanner_screen.dart';
 import '../../nfc/presentation/nfc_scanner_sheet.dart' as import_nfc_sheet;
 import '../application/passport_draft_controller.dart';
 import '../application/passport_list_provider.dart';
@@ -67,6 +69,43 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
       ..updateExpiryDate(_expiryDateController.text)
       ..updateMrzRaw(_mrzController.text)
       ..updateIsEPassport(_modeIndex == 0);
+  }
+
+  Future<void> _openCameraScanner() async {
+    final result = await Navigator.of(context).push<MrzResult>(
+      MaterialPageRoute<MrzResult>(builder: (_) => const MrzScannerScreen()),
+    );
+    if (result == null || !mounted) return;
+
+    // Populate all text controllers from scan result
+    _nameController.text = result.displayName;
+    _passportNumberController.text = result.passportNumber;
+    _nationalityController.text = result.nationality;
+    _dateOfBirthController.text = result.dateOfBirth;
+    _expiryDateController.text = result.expiryDate;
+
+    // Sync to draft + save image path
+    _syncDraft();
+    if (result.capturedImagePath.isNotEmpty) {
+      ref.read(passportDraftProvider.notifier).updateImagePath(result.capturedImagePath);
+    }
+
+    // Brief success feedback
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(children: [
+            Icon(Icons.check_circle_rounded, color: Colors.white),
+            SizedBox(width: 10),
+            Text('Fields filled from scan — please review'),
+          ]),
+          backgroundColor: const Color(0xFF34C759),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   Future<void> _startNfcScan() async {
@@ -228,6 +267,7 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
                           expiryDateController: _expiryDateController,
                           onChanged: _syncDraft,
                           onScanNfc: _startNfcScan,
+                          onScanCamera: _openCameraScanner,
                         )
                       : _RegularPassportPanel(
                           key: const ValueKey<String>('regular'),
@@ -238,6 +278,7 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
                           expiryDateController: _expiryDateController,
                           mrzController: _mrzController,
                           onChanged: _syncDraft,
+                          onScanCamera: _openCameraScanner,
                         ),
                 ),
                 const SizedBox(height: 18),
@@ -599,6 +640,7 @@ class _EPassportPanel extends StatelessWidget {
     required this.expiryDateController,
     required this.onChanged,
     required this.onScanNfc,
+    required this.onScanCamera,
   });
 
   final TextEditingController passportNumberController;
@@ -606,6 +648,7 @@ class _EPassportPanel extends StatelessWidget {
   final TextEditingController expiryDateController;
   final VoidCallback onChanged;
   final VoidCallback onScanNfc;
+  final VoidCallback onScanCamera;
 
   Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
     DateTime initDate = DateTime(2000);
@@ -678,6 +721,9 @@ class _EPassportPanel extends StatelessWidget {
     return _GlassPanel(
       child: Column(
         children: <Widget>[
+          // Camera scan button
+          _ScanPassportButton(onTap: onScanCamera),
+          const _OrDivider(),
           const Padding(
             padding: EdgeInsets.only(bottom: 16, top: 4),
             child: Text(
@@ -759,6 +805,7 @@ class _RegularPassportPanel extends StatelessWidget {
     required this.expiryDateController,
     required this.mrzController,
     required this.onChanged,
+    required this.onScanCamera,
   });
 
   final TextEditingController nameController;
@@ -768,6 +815,7 @@ class _RegularPassportPanel extends StatelessWidget {
   final TextEditingController expiryDateController;
   final TextEditingController mrzController;
   final VoidCallback onChanged;
+  final VoidCallback onScanCamera;
 
   Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
     DateTime initDate = DateTime(2000);
@@ -840,6 +888,8 @@ class _RegularPassportPanel extends StatelessWidget {
     return _GlassPanel(
       child: Column(
         children: <Widget>[
+          _ScanPassportButton(onTap: onScanCamera),
+          const _OrDivider(),
           _StudioField(
             controller: nameController,
             label: 'Full name',
@@ -1195,6 +1245,83 @@ class _TapScaleState extends State<_TapScale> {
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOutCubic,
         child: widget.child,
+      ),
+    );
+  }
+}
+
+// ── Camera Scan Button ────────────────────────────────────────────────────────
+
+class _ScanPassportButton extends StatelessWidget {
+  const _ScanPassportButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _TapScale(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: <Color>[Color(0xFF1A1A2E), Color(0xFF16213E)],
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: const Color(0xFF1A1A2E).withValues(alpha: 0.25),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(Icons.camera_alt_rounded, color: Colors.white, size: 22),
+            SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Scan Passport',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
+                ),
+                Text(
+                  'Auto-fill from camera',
+                  style: TextStyle(color: Colors.white54, fontSize: 11),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── "or enter manually" divider ───────────────────────────────────────────────
+
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Row(
+        children: <Widget>[
+          Expanded(child: Divider(color: Colors.black.withValues(alpha: 0.1), thickness: 1)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              'or enter manually',
+              style: TextStyle(color: Colors.black.withValues(alpha: 0.35), fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+          Expanded(child: Divider(color: Colors.black.withValues(alpha: 0.1), thickness: 1)),
+        ],
       ),
     );
   }
