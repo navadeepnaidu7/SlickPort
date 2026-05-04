@@ -13,6 +13,7 @@ class PassportProfile {
     this.issueDate = '',
     this.issuingAuthority = '',
     this.gender = '',
+    this.isEPassport = false,
   });
 
   const PassportProfile.empty()
@@ -26,7 +27,8 @@ class PassportProfile {
         placeOfBirth = '',
         issueDate = '',
         issuingAuthority = '',
-        gender = '';
+        gender = '',
+        isEPassport = false;
 
   final String name;
   final String passportNumber;
@@ -39,6 +41,7 @@ class PassportProfile {
   final String issueDate;
   final String issuingAuthority;
   final String gender;
+  final bool isEPassport;
 
   PassportProfile copyWith({
     String? name,
@@ -52,6 +55,7 @@ class PassportProfile {
     String? issueDate,
     String? issuingAuthority,
     String? gender,
+    bool? isEPassport,
   }) {
     return PassportProfile(
       name: name ?? this.name,
@@ -65,6 +69,7 @@ class PassportProfile {
       issueDate: issueDate ?? this.issueDate,
       issuingAuthority: issuingAuthority ?? this.issuingAuthority,
       gender: gender ?? this.gender,
+      isEPassport: isEPassport ?? this.isEPassport,
     );
   }
 
@@ -81,6 +86,7 @@ class PassportProfile {
       'issueDate': issueDate,
       'issuingAuthority': issuingAuthority,
       'gender': gender,
+      'isEPassport': isEPassport,
     };
   }
 
@@ -97,6 +103,7 @@ class PassportProfile {
       issueDate: map['issueDate'] ?? '',
       issuingAuthority: map['issuingAuthority'] ?? '',
       gender: map['gender'] ?? '',
+      isEPassport: map['isEPassport'] ?? false,
     );
   }
 

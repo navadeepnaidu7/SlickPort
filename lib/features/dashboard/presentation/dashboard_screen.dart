@@ -51,8 +51,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     super.dispose();
   }
 
-  void _openPassportEntry() {
+  void _openPassportEntry(bool isEPassport) {
     ref.read(passportDraftProvider.notifier).reset();
+    ref.read(passportDraftProvider.notifier).updateIsEPassport(isEPassport);
     Navigator.of(context).push(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 680),
@@ -87,8 +88,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       backgroundColor: Colors.transparent,
       builder: (_) => _AddItemSheet(onAddPassport: () {
         Navigator.of(context).pop();
-        _openPassportEntry();
+        _showPassportTypeSheet();
       }),
+    );
+  }
+
+  void _showPassportTypeSheet() {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PassportTypeSheet(
+        onSelectEPassport: () {
+          Navigator.of(context).pop();
+          _openPassportEntry(true);
+        },
+        onSelectRegularPassport: () {
+          Navigator.of(context).pop();
+          _openPassportEntry(false);
+        },
+      ),
     );
   }
 
@@ -584,12 +605,12 @@ class _AddItemSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Align(
+                const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     "Choose what you'd like to add",
                     style: TextStyle(
-                      color: const Color(0xFF8E8E93),
+                      color: Color(0xFF8E8E93),
                       fontSize: 15,
                     ),
                   ),
@@ -619,6 +640,99 @@ class _AddItemSheet extends StatelessWidget {
                   subtitle: 'Aadhaar, PAN or any national ID',
                   onTap: () => Navigator.of(context).pop(),
                   comingSoon: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PassportTypeSheet extends StatelessWidget {
+  const _PassportTypeSheet({
+    required this.onSelectEPassport,
+    required this.onSelectRegularPassport,
+  });
+
+  final VoidCallback onSelectEPassport;
+  final VoidCallback onSelectRegularPassport;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(36),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.98),
+              borderRadius: BorderRadius.circular(36),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 30,
+                  offset: const Offset(0, -10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                // drag handle
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5E5EA),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Passport Type',
+                    style: TextStyle(
+                      color: Color(0xFF1C1C1E),
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Which kind of passport are you adding?",
+                    style: TextStyle(
+                      color: Color(0xFF8E8E93),
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _AddOption(
+                  icon: Icons.nfc_rounded,
+                  iconColor: const Color(0xFF4C7CFF),
+                  title: 'E-Passport',
+                  subtitle: 'Biometric passport with an NFC chip',
+                  onTap: onSelectEPassport,
+                ),
+                const SizedBox(height: 12),
+                _AddOption(
+                  icon: Icons.menu_book_rounded,
+                  iconColor: const Color(0xFF19D3C5),
+                  title: 'Regular Passport',
+                  subtitle: 'Standard passport without NFC',
+                  onTap: onSelectRegularPassport,
                 ),
               ],
             ),

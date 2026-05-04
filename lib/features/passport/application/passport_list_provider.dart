@@ -43,7 +43,8 @@ class PassportListController extends StateNotifier<List<PassportProfile>> {
   }
 
   void addPassport(PassportProfile profile) {
-    final newState = [...state, profile];
+    // Add to the front so it appears immediately on the dashboard fluidly
+    final newState = [profile, ...state];
     state = newState;
     _savePassports(newState);
   }

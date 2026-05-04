@@ -327,7 +327,7 @@ class _CardFront extends StatelessWidget {
                               color: Color(0xFFD4A843),
                               fontSize: 9.5,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 2.4,
+                              letterSpacing: 1.2,
                             ),
                           ),
                           SizedBox(height: 2),
@@ -337,13 +337,13 @@ class _CardFront extends StatelessWidget {
                               color: Colors.white,
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 4.0,
+                              letterSpacing: 2.0,
                             ),
                           ),
                         ],
                       ),
                       const Spacer(),
-                      const _EPassportSymbol(),
+                      if (profile.isEPassport) const _EPassportSymbol(),
                     ],
                   ),
                 ),
@@ -427,7 +427,7 @@ class _CardFront extends StatelessWidget {
                       ),
                       const SizedBox(width: 7),
                       Text(
-                        'Tap to Flip for more details',
+                        'Tap to view details',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.30),
                           fontSize: 11,
@@ -455,24 +455,151 @@ class _CardBack extends StatelessWidget {
   final PassportProfile profile;
   final double tiltY;
 
+  String _generateMRZ(PassportProfile profile) {
+    if (profile.mrzRaw.trim().isNotEmpty) return profile.mrzRaw;
+
+    int calcCheckDigit(String str) {
+      const weights = [7, 3, 1];
+      int sum = 0;
+      for (int i = 0; i < str.length; i++) {
+        int val;
+        final char = str[i];
+        if (char == '<') {
+          val = 0;
+        } else if (char.codeUnitAt(0) >= '0'.codeUnitAt(0) && char.codeUnitAt(0) <= '9'.codeUnitAt(0)) {
+          val = int.parse(char);
+        } else {
+          val = char.codeUnitAt(0) - 'A'.codeUnitAt(0) + 10;
+        }
+        sum += val * weights[i % 3];
+      }
+      return sum % 10;
+    }
+
+    final country = profile.nationality.isEmpty ? 'IND' : profile.nationality.padRight(3, '<').substring(0, 3).toUpperCase();
+    
+    final nameParts = profile.name.trim().isEmpty ? ['HOLDER', 'NAME'] : profile.name.toUpperCase().split(' ');
+    String nameField;
+    if (nameParts.length > 1) {
+      final surname = nameParts.last;
+      final givenNames = nameParts.sublist(0, nameParts.length - 1).join('<');
+      nameField = '$surname<<$givenNames';
+    } else {
+      nameField = nameParts.first;
+    }
+    nameField = nameField.padRight(39, '<').substring(0, 39);
+    final line1 = 'P<$country$nameField';
+
+    final passNo = profile.passportNumber.isEmpty ? 'A1234567' : profile.passportNumber.padRight(9, '<').substring(0, 9).toUpperCase();
+    final passCheck = calcCheckDigit(passNo);
+    
+    String formatYYMMDD(String date) {
+      if (date.isEmpty) return '<<<<<<';
+      try {
+        if (date.length == 6 && int.tryParse(date) != null) return date;
+        final parts = date.split(' ');
+        if (parts.length == 3) {
+          final d = parts[0].padLeft(2, '0');
+          const months = {'JAN':'01','FEB':'02','MAR':'03','APR':'04','MAY':'05','JUN':'06','JUL':'07','AUG':'08','SEP':'09','OCT':'10','NOV':'11','DEC':'12'};
+          final m = months[parts[1].toUpperCase().substring(0, 3)] ?? '01';
+          final y = parts[2].substring(parts[2].length - 2);
+          return '$y$m$d';
+        }
+      } catch (_) {}
+      return '000000';
+    }
+    
+    final dob = formatYYMMDD(profile.dateOfBirth);
+    final dobCheck = calcCheckDigit(dob);
+    
+    final sex = profile.gender.toUpperCase().startsWith('F') ? 'F' : (profile.gender.toUpperCase().startsWith('M') ? 'M' : '<');
+    
+    final exp = formatYYMMDD(profile.expiryDate);
+    final expCheck = calcCheckDigit(exp);
+    
+    final personalNo = '<<<<<<<<<<<<<<';
+    final personalCheck = calcCheckDigit(personalNo);
+    
+    final composite = '$passNo$passCheck$dob$dobCheck$exp$expCheck$personalNo$personalCheck';
+    final compositeCheck = calcCheckDigit(composite);
+    
+    final line2 = '$passNo$passCheck$country$dob$dobCheck$sex$exp$expCheck$personalNo$personalCheck$compositeCheck';
+    
+    return '$line1\n$line2';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final String fullName = profile.name.trim().isEmpty ? 'N/A' : profile.name.toUpperCase();
-    final String dob = profile.dateOfBirth.isEmpty ? 'N/A' : profile.dateOfBirth;
-    final String expiry = profile.expiryDate.isEmpty ? 'N/A' : profile.expiryDate;
-    final String nationality = profile.nationality.isEmpty ? 'N/A' : profile.nationality;
-    final String gender = profile.gender.isEmpty ? 'N/A' : profile.gender;
-    final String placeOfBirth = profile.placeOfBirth.isEmpty ? 'N/A' : profile.placeOfBirth;
-    final String issueDate = profile.issueDate.isEmpty ? 'N/A' : profile.issueDate;
-    final String issuingAuthority = profile.issuingAuthority.isEmpty ? 'N/A' : profile.issuingAuthority;
+    String formatNiceDate(String date) {
+      if (date.isEmpty) return 'N/A';
+      try {
+        if (date.contains('-')) {
+          final parts = date.split('-');
+          if (parts.length == 3) {
+            final y = parts[0];
+            final mInt = int.parse(parts[1]);
+            final d = int.parse(parts[2]).toString();
+            const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            final m = (mInt >= 1 && mInt <= 12) ? months[mInt - 1] : parts[1];
+            return '$y $m $d';
+          }
+        }
+
+        if (date.length == 8 && !date.contains(' ')) {
+          final y = date.substring(0, 4);
+          final mStr = date.substring(4, 6);
+          final dStr = date.substring(6, 8);
+          final mInt = int.parse(mStr);
+          const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+          final m = (mInt >= 1 && mInt <= 12) ? months[mInt - 1] : mStr;
+          final d = int.parse(dStr).toString();
+          return '$y $m $d';
+        }
         
-    final String mrz = profile.mrzRaw.trim().isEmpty
-        ? 'P<IND<<HOLDER<<NAME<<<<<<<<<<<<<<<<<<<<<\nA123456780IND9001011M3501011<<<<<<<<<<<04'
-        : profile.mrzRaw;
+        if (date.length == 6 && !date.contains(' ')) {
+          final yy = int.parse(date.substring(0, 2));
+          final y = (yy > 50 ? 1900 + yy : 2000 + yy).toString();
+          final mStr = date.substring(2, 4);
+          final dStr = date.substring(4, 6);
+          final mInt = int.parse(mStr);
+          const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+          final m = (mInt >= 1 && mInt <= 12) ? months[mInt - 1] : mStr;
+          final d = int.parse(dStr).toString();
+          return '$y $m $d';
+        }
+
+        final parts = date.split(' ');
+        if (parts.length == 3) {
+          final d = int.parse(parts[0]).toString();
+          const months = {'JAN':'January','FEB':'February','MAR':'March','APR':'April','MAY':'May','JUN':'June','JUL':'July','AUG':'August','SEP':'September','OCT':'October','NOV':'November','DEC':'December'};
+          final m = months[parts[1].toUpperCase().substring(0, 3)] ?? parts[1];
+          final y = parts[2];
+          return '$y $m $d';
+        }
+      } catch (_) {}
+      return date;
+    }
+
+    final String fullName = profile.name.trim().isEmpty ? 'NAVADEEP NAIDU GUDI' : profile.name.toUpperCase();
+    final String dob = profile.dateOfBirth.isEmpty ? '2005 August 10' : formatNiceDate(profile.dateOfBirth);
+    final String expiry = profile.expiryDate.isEmpty ? '2035 October 27' : formatNiceDate(profile.expiryDate);
+    final String gender = profile.gender.isEmpty ? 'MALE' : profile.gender.toUpperCase();
+    final String nationality = profile.nationality.isEmpty ? 'IND' : profile.nationality.toUpperCase();
+    final String placeOfBirth = profile.placeOfBirth.isEmpty ? 'PARIGI, TELANGANA' : profile.placeOfBirth;
+    final String issueDate = profile.issueDate.isEmpty ? '2025 October 28' : formatNiceDate(profile.issueDate);
+    final String issuingAuthority = profile.issuingAuthority.isEmpty ? 'Regional Passport Office, Hyderabad' : profile.issuingAuthority;
+    final String passNum = profile.passportNumber.isEmpty ? 'A1234567' : profile.passportNumber.toUpperCase();
+        
+    final String mrz = _generateMRZ(profile);
 
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(40),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF14244B), Color(0xFF0A1226)],
+        ),
         boxShadow: <BoxShadow>[
           BoxShadow(
             color: const Color(0xFF000000).withValues(alpha: 0.28),
@@ -485,63 +612,23 @@ class _CardBack extends StatelessWidget {
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
-          // Subtle glow
-          BoxShadow(
-            color: const Color(0xFFFFFFFF).withValues(alpha: 0.08),
-            blurRadius: 1,
-            spreadRadius: 1,
-            offset: const Offset(0, 1),
-          ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(40),
         child: Stack(
           children: <Widget>[
-            // — background —
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: <Color>[
-                    Color(0xFF14244B),
-                    Color(0xFF0A1226),
-                  ],
-                ),
-              ),
-            ),
+            // Watermarks
+            Positioned.fill(child: CustomPaint(painter: _AshokaPainter(color: Colors.white.withValues(alpha: 0.05)))),
+            Positioned.fill(child: CustomPaint(painter: _SecurityLinePainter(color: Colors.white.withValues(alpha: 0.02)))),
 
-            const Positioned.fill(child: CustomPaint(painter: _AshokaPainter())),
-            const Positioned.fill(child: CustomPaint(painter: _SecurityLinePainter())),
-
-            // shimmer
-            // — dynamic interactive shimmer —
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: const <Color>[
-                      Colors.transparent,
-                      Color(0x18FFFFFF),
-                      Colors.transparent,
-                    ],
-                    stops: const <double>[0.0, 0.5, 1.0],
-                    transform: _SlideGradient(tiltY * 1200),
-                  ),
-                ),
-              ),
-            ),
-
-            // — tricolor bottom strip —
+            // Tricolor top strip
             Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
+              top: 0,
+              left: 20,
+              right: 20,
               child: SizedBox(
-                height: 6,
+                height: 4,
                 child: Row(
                   children: <Widget>[
                     Expanded(child: Container(color: const Color(0xFFFF9933))),
@@ -552,56 +639,51 @@ class _CardBack extends StatelessWidget {
               ),
             ),
 
-            // — content —
+            // Content
             Padding(
-              padding: const EdgeInsets.fromLTRB(28, 26, 28, 26),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  // section header
-                  Row(
-                    children: <Widget>[
-                      SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: SvgPicture.asset(
-                          'assets/identity/Emblem_of_India.svg',
-                          colorFilter: const ColorFilter.mode(
-                            Color(0xFFD4A843),
-                            BlendMode.srcIn,
+                  // Emblem & Header
+                  if (nationality == 'IND')
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Row(
+                        children: [
+                          SvgPicture.asset(
+                            'assets/identity/Emblem_of_India.svg',
+                            width: 22,
+                            height: 22,
+                            colorFilter: const ColorFilter.mode(
+                              Color(0xFFD4A843),
+                              BlendMode.srcIn,
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'REPUBLIC OF INDIA',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'PERSONAL DETAILS',
-                        style: TextStyle(
-                          color: Color(0xFFD4A843),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 2.4,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
 
-                  const SizedBox(height: 24),
-
-                  // fields grid & photo
+                  // Profile Row
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      // NFC Photo Placeholder
+                    children: [
+                      // Photo
                       Container(
                         width: 100,
                         height: 130,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.04),
+                          color: Colors.grey.shade200,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.12),
-                            width: 1.2,
-                          ),
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
@@ -613,132 +695,171 @@ class _CardBack extends StatelessWidget {
                                   height: 130,
                                 )
                               : Center(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.nfc_rounded,
-                                        color: Colors.white.withValues(alpha: 0.28),
-                                        size: 32,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'NFC\nPHOTO',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.28),
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 1.2,
-                                        ),
-                                      ),
-                                    ],
+                                  child: Icon(
+                                    Icons.person_rounded,
+                                    color: Colors.grey.shade400,
+                                    size: 40,
                                   ),
                                 ),
                         ),
                       ),
-                      const SizedBox(width: 18),
-                      // Fields
+                      const SizedBox(width: 16),
+                      // Name and Badges
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            _BackField(label: 'FULL NAME', value: fullName),
-                            const SizedBox(height: 14),
-                            Row(
-                              children: <Widget>[
-                                Expanded(child: _BackField(label: 'GENDER', value: gender)),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Expanded(child: _BackField(label: 'DOB', value: dob)),
-                                Expanded(child: _BackField(label: 'PLACE OF BIRTH', value: placeOfBirth)),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Expanded(child: _BackField(label: 'ISSUE DATE', value: issueDate)),
-                                Expanded(child: _BackField(label: 'EXPIRY DATE', value: expiry)),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            _BackField(label: 'ISSUING AUTHORITY', value: issuingAuthority),
-                          ],
+                        child: SizedBox(
+                          height: 130,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Text(
+                                fullName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.2,
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  Text(
+                                    passNum,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      fontFamily: 'monospace',
+                                      letterSpacing: 3.0,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Builder(
+                                    builder: (context) {
+                                      String getFlagEmoji(String countryCode) {
+                                        if (countryCode.isEmpty) return '🛂';
+                                        const alpha3To2 = {
+                                          'IND': 'IN', 'USA': 'US', 'GBR': 'GB', 'CAN': 'CA', 'AUS': 'AU', 
+                                          'DEU': 'DE', 'FRA': 'FR', 'JPN': 'JP', 'CHN': 'CN', 'BRA': 'BR',
+                                        };
+                                        final alpha2 = countryCode.length == 3 
+                                            ? (alpha3To2[countryCode.toUpperCase()] ?? countryCode.substring(0, 2)) 
+                                            : countryCode.toUpperCase();
+                                        
+                                        if (alpha2.length < 2) return '🛂';
+                                        try {
+                                          final first = alpha2.codeUnitAt(0) - 0x41 + 0x1F1E6;
+                                          final second = alpha2.codeUnitAt(1) - 0x41 + 0x1F1E6;
+                                          return String.fromCharCodes([first, second]);
+                                        } catch (_) {
+                                          return '🛂';
+                                        }
+                                      }
+                                      return Text(
+                                        getFlagEmoji(nationality),
+                                        style: const TextStyle(fontSize: 28),
+                                      );
+                                    }
+                                  ),
+                                ],
+                              ),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _Badge(icon: Icons.person_outline, text: gender),
+                                  _Badge(icon: Icons.calendar_today_outlined, text: dob),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-
-                  const Spacer(),
-
-                  // — MRZ zone —
-                  Column(
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Detail Blocks
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'MACHINE READABLE ZONE',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.4),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 2.0,
+                    children: [
+                      Expanded(
+                        child: _DetailBlock(
+                          label: 'DATE OF ISSUE',
+                          value: issueDate,
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.38),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            width: 1.2,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _DetailBlock(
+                          label: 'DATE OF EXPIRY',
+                          value: expiry,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: _DetailBlock(
+                          label: 'PLACE OF BIRTH',
+                          value: placeOfBirth,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 1,
+                        child: _DetailBlock(
+                          label: 'NATIONALITY',
+                          value: nationality,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _DetailBlock(
+                    label: 'ISSUING AUTHORITY',
+                    value: issuingAuthority,
+                  ),
+                  
+                  const Spacer(),
+                  
+                  // MRZ Zone
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'MACHINE READABLE ZONE',
+                          style: TextStyle(
+                            color: Colors.white60,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
                           ),
                         ),
-                        child: Text(
+                        const SizedBox(height: 10),
+                        Text(
                           mrz,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: const Color(0xFF8BAFC4).withValues(alpha: 0.9),
-                            fontSize: 10.5,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11.5,
                             fontFamily: 'monospace',
                             fontWeight: FontWeight.w600,
-                            letterSpacing: 1.2,
+                            letterSpacing: 1.4,
                             height: 1.8,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // tap-to-flip hint
-                  Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(
-                          Icons.credit_card_rounded,
-                          color: Colors.white.withValues(alpha: 0.32),
-                          size: 14,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Tap to flip back',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.32),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.2,
                           ),
                         ),
                       ],
@@ -747,6 +868,7 @@ class _CardBack extends StatelessWidget {
                 ],
               ),
             ),
+
           ],
         ),
       ),
@@ -759,38 +881,14 @@ class _CardBack extends StatelessWidget {
 class _EmblemOval extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 142,
-      height: 178,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(80),
-        gradient: RadialGradient(
-          colors: <Color>[
-            const Color(0xFF1F3058).withValues(alpha: 0.90),
-            const Color(0xFF0E1B30).withValues(alpha: 0.95),
-          ],
-        ),
-        border: Border.all(
-          color: const Color(0xFFD4A843).withValues(alpha: 0.22),
-          width: 1.5,
-        ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: const Color(0xFFD4A843).withValues(alpha: 0.10),
-            blurRadius: 28,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Center(
-        child: SvgPicture.asset(
-          'assets/identity/Emblem_of_India.svg',
-          width: 88,
-          height: 88,
-          colorFilter: const ColorFilter.mode(
-            Color(0xFFD4A843),
-            BlendMode.srcIn,
-          ),
+    return Center(
+      child: SvgPicture.asset(
+        'assets/identity/Emblem_of_India.svg',
+        width: 140,
+        height: 140,
+        colorFilter: const ColorFilter.mode(
+          Color(0xFFD4A843),
+          BlendMode.srcIn,
         ),
       ),
     );
@@ -851,37 +949,78 @@ class _EPassportSymbolPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _BackField extends StatelessWidget {
-  const _BackField({required this.label, required this.value});
-
-  final String label;
-  final String value;
+class _Badge extends StatelessWidget {
+  const _Badge({required this.icon, required this.text, this.darkTheme = true});
+  final IconData icon;
+  final String text;
+  final bool darkTheme;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.42),
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.6,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: darkTheme ? Colors.white.withValues(alpha: 0.04) : Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: darkTheme ? Colors.white.withValues(alpha: 0.1) : Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: darkTheme ? Colors.white70 : const Color(0xFF14244B).withValues(alpha: 0.6)),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: darkTheme ? Colors.white : const Color(0xFF14244B),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.2,
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailBlock extends StatelessWidget {
+  const _DetailBlock({required this.label, required this.value, this.darkTheme = true});
+  final String label;
+  final String value;
+  final bool darkTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: darkTheme ? Colors.white.withValues(alpha: 0.04) : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: darkTheme ? Colors.white60 : const Color(0xFF14244B).withValues(alpha: 0.5),
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.0,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: darkTheme ? Colors.white : const Color(0xFF14244B),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -889,12 +1028,13 @@ class _BackField extends StatelessWidget {
 // ─── PAINTERS ────────────────────────────────────────────────────────────────
 
 class _AshokaPainter extends CustomPainter {
-  const _AshokaPainter();
+  const _AshokaPainter({this.color});
+  final Color? color;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.022)
+      ..color = color ?? Colors.white.withValues(alpha: 0.022)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.7;
 
@@ -920,12 +1060,13 @@ class _AshokaPainter extends CustomPainter {
 }
 
 class _SecurityLinePainter extends CustomPainter {
-  const _SecurityLinePainter();
+  const _SecurityLinePainter({this.color});
+  final Color? color;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.012)
+      ..color = color ?? Colors.white.withValues(alpha: 0.012)
       ..strokeWidth = 0.6;
 
     // diagonal security micro-lines

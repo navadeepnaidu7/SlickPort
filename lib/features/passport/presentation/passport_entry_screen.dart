@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import 'package:flutter/cupertino.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,6 +41,7 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
     _dateOfBirthController = TextEditingController(text: profile.dateOfBirth);
     _expiryDateController = TextEditingController(text: profile.expiryDate);
     _mrzController = TextEditingController(text: profile.mrzRaw);
+    _modeIndex = profile.isEPassport ? 0 : 1;
   }
 
   @override
@@ -62,7 +65,8 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
       ..updateNationality(_nationalityController.text)
       ..updateDateOfBirth(_dateOfBirthController.text)
       ..updateExpiryDate(_expiryDateController.text)
-      ..updateMrzRaw(_mrzController.text);
+      ..updateMrzRaw(_mrzController.text)
+      ..updateIsEPassport(_modeIndex == 0);
   }
 
   Future<void> _startNfcScan() async {
@@ -148,6 +152,9 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
         issuingAuthority: result['dg12_issuingAuthority']?.toString(),
       );
       draftNotifier.replaceWith(updatedProfile);
+      
+      // We keep it as e-passport since we just NFC scanned it.
+      draftNotifier.updateIsEPassport(true);
     }
   }
 
@@ -158,17 +165,21 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
     final profile = ref.read(passportDraftProvider);
     ref.read(passportListProvider.notifier).addPassport(profile);
 
-    // Show quick sheet, then jump back to Dashboard
-    showModalBottomSheet<void>(
+    // Show full screen success overlay
+    showGeneralDialog<void>(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext context) => const _SaveSheet(),
+      barrierColor: Colors.transparent,
+      pageBuilder: (context, animation, secondaryAnimation) => const _SuccessOverlay(),
+      transitionDuration: const Duration(milliseconds: 300),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
     );
 
-    // Give it a brief moment to show the updated sheet safely, then pop both the sheet and screen.
-    Future.delayed(const Duration(milliseconds: 600), () {
+    // Give it a brief moment to show the updated sheet safely, then pop both the overlay and screen.
+    Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) {
-        Navigator.of(context).pop(); // pop sheet
+        Navigator.of(context).pop(); // pop success overlay
         Navigator.of(context).pop(); // pop entry screen back to dashboard
       }
     });
@@ -207,26 +218,19 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(20, 72, 20, 30),
               children: <Widget>[
-                EntryReveal(child: _LivePassportPreview(profile: profile)),
                 const SizedBox(height: 18),
                 EntryReveal(
-                  delay: const Duration(milliseconds: 80),
-                  child: _ModeSwitch(
-                    selectedIndex: _modeIndex,
-                    onChanged: (int index) {
-                      setState(() => _modeIndex = index);
-                      HapticFeedback.selectionClick();
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 360),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
                   child: _modeIndex == 0
-                      ? _ManualPanel(
-                          key: const ValueKey<String>('manual'),
+                      ? _EPassportPanel(
+                          key: const ValueKey<String>('epassport'),
+                          passportNumberController: _passportNumberController,
+                          dateOfBirthController: _dateOfBirthController,
+                          expiryDateController: _expiryDateController,
+                          onChanged: _syncDraft,
+                          onScanNfc: _startNfcScan,
+                        )
+                      : _RegularPassportPanel(
+                          key: const ValueKey<String>('regular'),
                           nameController: _nameController,
                           passportNumberController: _passportNumberController,
                           nationalityController: _nationalityController,
@@ -234,16 +238,11 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
                           expiryDateController: _expiryDateController,
                           mrzController: _mrzController,
                           onChanged: _syncDraft,
-                          onScanNfc: _startNfcScan,
-                        )
-                      : _ScannerPanel(
-                          key: const ValueKey<String>('scanner'),
-                          onManualTap: () => setState(() => _modeIndex = 0),
                         ),
                 ),
                 const SizedBox(height: 18),
                 EntryReveal(
-                  delay: const Duration(milliseconds: 160),
+                  delay: const Duration(milliseconds: 80),
                   child: _SaveButton(onTap: _saveDraft),
                 ),
               ],
@@ -352,25 +351,47 @@ class _LivePassportPreview extends StatelessWidget {
             Positioned(
               left: 20,
               top: 20,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'LIVE PREVIEW',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'LIVE PREVIEW',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (profile.isEPassport) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Icon(
+                          Icons.nfc_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ),
             Positioned(
               left: 20,
               right: 20,
@@ -503,14 +524,14 @@ class _ModeSwitch extends StatelessWidget {
       child: Row(
         children: <Widget>[
           _ModeOption(
-            label: 'Manual',
-            icon: Icons.edit_note_rounded,
+            label: 'E-Passport',
+            icon: Icons.nfc_rounded,
             selected: selectedIndex == 0,
             onTap: () => onChanged(0),
           ),
           _ModeOption(
-            label: 'Scanner',
-            icon: Icons.center_focus_strong_rounded,
+            label: 'Regular',
+            icon: Icons.menu_book_rounded,
             selected: selectedIndex == 1,
             onTap: () => onChanged(1),
           ),
@@ -570,8 +591,166 @@ class _ModeOption extends StatelessWidget {
   }
 }
 
-class _ManualPanel extends StatelessWidget {
-  const _ManualPanel({
+class _EPassportPanel extends StatelessWidget {
+  const _EPassportPanel({
+    super.key,
+    required this.passportNumberController,
+    required this.dateOfBirthController,
+    required this.expiryDateController,
+    required this.onChanged,
+    required this.onScanNfc,
+  });
+
+  final TextEditingController passportNumberController;
+  final TextEditingController dateOfBirthController;
+  final TextEditingController expiryDateController;
+  final VoidCallback onChanged;
+  final VoidCallback onScanNfc;
+
+  Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+    DateTime initDate = DateTime(2000);
+    if (controller.text.isNotEmpty) {
+      try {
+        initDate = DateTime.parse(controller.text);
+      } catch (_) {}
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext builder) {
+        return Container(
+          height: 300,
+          margin: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Select Date',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1C1C1E),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF007AFF),
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(50, 30),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  initialDateTime: initDate,
+                  minimumDate: DateTime(1900),
+                  maximumDate: DateTime(2100),
+                  onDateTimeChanged: (DateTime newDate) {
+                    controller.text = "${newDate.year}-${newDate.month.toString().padLeft(2, '0')}-${newDate.day.toString().padLeft(2, '0')}";
+                    onChanged();
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassPanel(
+      child: Column(
+        children: <Widget>[
+          const Padding(
+            padding: EdgeInsets.only(bottom: 16, top: 4),
+            child: Text(
+              'Enter these three details, then tap Verify Identity to scan your E-Passport.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFF64748B), height: 1.4),
+            ),
+          ),
+          _StudioField(
+            controller: passportNumberController,
+            label: 'Passport number',
+            icon: Icons.confirmation_number_rounded,
+            onChanged: onChanged,
+          ),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _StudioField(
+                  controller: dateOfBirthController,
+                  label: 'Date of birth',
+                  hintText: 'YYYY-MM-DD',
+                  icon: Icons.cake_rounded,
+                  readOnly: true,
+                  onTap: () => _selectDate(context, dateOfBirthController),
+                  onChanged: onChanged,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _StudioField(
+                  controller: expiryDateController,
+                  label: 'Expiry date',
+                  hintText: 'YYYY-MM-DD',
+                  icon: Icons.event_available_rounded,
+                  readOnly: true,
+                  onTap: () => _selectDate(context, expiryDateController),
+                  onChanged: onChanged,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: onScanNfc,
+              icon: const Icon(Icons.nfc_rounded, color: Colors.white),
+              label: const Text(
+                'Verify Identity (NFC)',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF007AFF),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RegularPassportPanel extends StatelessWidget {
+  const _RegularPassportPanel({
     super.key,
     required this.nameController,
     required this.passportNumberController,
@@ -580,7 +759,6 @@ class _ManualPanel extends StatelessWidget {
     required this.expiryDateController,
     required this.mrzController,
     required this.onChanged,
-    required this.onScanNfc,
   });
 
   final TextEditingController nameController;
@@ -590,7 +768,72 @@ class _ManualPanel extends StatelessWidget {
   final TextEditingController expiryDateController;
   final TextEditingController mrzController;
   final VoidCallback onChanged;
-  final VoidCallback onScanNfc;
+
+  Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+    DateTime initDate = DateTime(2000);
+    if (controller.text.isNotEmpty) {
+      try {
+        initDate = DateTime.parse(controller.text);
+      } catch (_) {}
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext builder) {
+        return Container(
+          height: 300,
+          margin: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Select Date',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1C1C1E),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF007AFF),
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(50, 30),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  initialDateTime: initDate,
+                  minimumDate: DateTime(1900),
+                  maximumDate: DateTime(2100),
+                  onDateTimeChanged: (DateTime newDate) {
+                    controller.text = "${newDate.year}-${newDate.month.toString().padLeft(2, '0')}-${newDate.day.toString().padLeft(2, '0')}";
+                    onChanged();
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -626,6 +869,8 @@ class _ManualPanel extends StatelessWidget {
                   label: 'Date of birth',
                   hintText: 'YYYY-MM-DD',
                   icon: Icons.cake_rounded,
+                  readOnly: true,
+                  onTap: () => _selectDate(context, dateOfBirthController),
                   onChanged: onChanged,
                 ),
               ),
@@ -636,6 +881,8 @@ class _ManualPanel extends StatelessWidget {
             label: 'Expiry date',
             hintText: 'YYYY-MM-DD',
             icon: Icons.event_available_rounded,
+            readOnly: true,
+            onTap: () => _selectDate(context, expiryDateController),
             onChanged: onChanged,
           ),
           _StudioField(
@@ -645,103 +892,6 @@ class _ManualPanel extends StatelessWidget {
             maxLines: 4,
             textInputAction: TextInputAction.newline,
             onChanged: onChanged,
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton.icon(
-              onPressed: onScanNfc,
-              icon: const Icon(Icons.nfc_rounded, color: Colors.white),
-              label: const Text(
-                'Verify Identity (NFC)',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF007AFF),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 0,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ScannerPanel extends StatelessWidget {
-  const _ScannerPanel({super.key, required this.onManualTap});
-
-  final VoidCallback onManualTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return _GlassPanel(
-      child: Column(
-        children: <Widget>[
-          Container(
-            height: 210,
-            decoration: BoxDecoration(
-              color: const Color(0xFF07111F),
-              borderRadius: BorderRadius.circular(28),
-            ),
-            child: Stack(
-              children: <Widget>[
-                const Positioned.fill(child: _ScannerFrame()),
-                Center(
-                  child: Container(
-                    width: 172,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        width: 2,
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 34,
-                  right: 34,
-                  top: 101,
-                  child: Container(
-                    height: 3,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      color: const Color(0xFF19D3C5),
-                      boxShadow: const <BoxShadow>[
-                        BoxShadow(color: Color(0x9919D3C5), blurRadius: 18),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Scanner preview',
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'The camera and OCR integration will land here. Until then, the manual studio keeps the same data contract.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF64748B), height: 1.4),
-          ),
-          const SizedBox(height: 18),
-          FilledButton.icon(
-            onPressed: onManualTap,
-            icon: const Icon(Icons.edit_rounded),
-            label: const Text('Use manual entry'),
           ),
         ],
       ),
@@ -807,6 +957,8 @@ class _StudioField extends StatefulWidget {
     this.hintText,
     this.maxLines = 1,
     this.textInputAction,
+    this.readOnly = false,
+    this.onTap,
   });
 
   final TextEditingController controller;
@@ -816,6 +968,8 @@ class _StudioField extends StatefulWidget {
   final String? hintText;
   final int maxLines;
   final TextInputAction? textInputAction;
+  final bool readOnly;
+  final VoidCallback? onTap;
 
   @override
   State<_StudioField> createState() => _StudioFieldState();
@@ -874,6 +1028,8 @@ class _StudioFieldState extends State<_StudioField> {
               controller: widget.controller,
               maxLines: widget.maxLines,
               textInputAction: widget.textInputAction,
+              readOnly: widget.readOnly,
+              onTap: widget.onTap,
               onChanged: (_) => widget.onChanged(),
               decoration: InputDecoration(
                 labelText: widget.label,
@@ -963,49 +1119,48 @@ class _CircleButton extends StatelessWidget {
   }
 }
 
-class _SaveSheet extends StatelessWidget {
-  const _SaveSheet();
+class _SuccessOverlay extends StatelessWidget {
+  const _SuccessOverlay();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(14),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
-        decoration: BoxDecoration(
-          color: const Color(0xFF07111F),
-          borderRadius: BorderRadius.circular(32),
-        ),
+    return Scaffold(
+      backgroundColor: const Color(0xFF34C759),
+      body: Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Container(
-              width: 58,
-              height: 58,
+              width: 100,
+              height: 100,
               decoration: BoxDecoration(
-                color: const Color(0xFF19D3C5).withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(22),
+                color: Colors.white.withValues(alpha: 0.25),
+                shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.check_rounded,
-                color: Color(0xFF19D3C5),
-                size: 32,
+                color: Colors.white,
+                size: 60,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 32),
             const Text(
               'Passport Saved!',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 22,
+                fontSize: 32,
                 fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Your passport has been securely added to your SlickPort dashboard.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70),
+            const SizedBox(height: 12),
+            Text(
+              'Securely added to your wallet.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

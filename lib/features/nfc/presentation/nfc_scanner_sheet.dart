@@ -95,63 +95,49 @@ class _NfcScannerSheetState extends State<NfcScannerSheet> with SingleTickerProv
           ),
           const SizedBox(height: 40),
           
-          // Icon
-          AnimatedBuilder(
-            animation: _pulseCtrl,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _isSuccess || _isError ? 1.0 : 1.0 + (_pulseCtrl.value * 0.1),
-                child: Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    color: _isSuccess
-                        ? const Color(0xFF34C759).withValues(alpha: 0.1)
-                        : _isError
-                            ? const Color(0xFFFF3B30).withValues(alpha: 0.1)
-                            : const Color(0xFF007AFF).withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    _isSuccess
-                        ? Icons.check_circle_rounded
-                        : _isError
-                            ? Icons.error_rounded
-                            : Icons.nfc_rounded,
-                    size: 40,
-                    color: _isSuccess
-                        ? const Color(0xFF34C759)
-                        : _isError
-                            ? const Color(0xFFFF3B30)
-                            : const Color(0xFF007AFF),
-                  ),
-                ),
-              );
-            },
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 600),
+            switchInCurve: Curves.easeOutBack,
+            switchOutCurve: Curves.easeInBack,
+            child: _isSuccess
+                ? _buildSuccessIcon()
+                : _isError
+                    ? _buildErrorIcon()
+                    : _buildScanningAnimation(),
           ),
           
           const SizedBox(height: 32),
           
           // Title
-          Text(
-            _isSuccess ? "Verified" : _isError ? "Error" : "Ready to Scan",
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF1C1C1E),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            child: Text(
+              _isSuccess ? "Verified successfully" : _isError ? "Scan failed" : "Ready to Scan",
+              key: ValueKey(_isSuccess ? 1 : _isError ? 2 : 3),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1C1C1E),
+                letterSpacing: 0.3,
+              ),
             ),
           ),
           
           const SizedBox(height: 12),
           
           // Status Message
-          Text(
-            _statusMessage,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF8E8E93),
-              height: 1.4,
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            child: Text(
+              _statusMessage,
+              key: ValueKey(_statusMessage),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 15,
+                color: Color(0xFF8E8E93),
+                height: 1.5,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           
@@ -189,6 +175,103 @@ class _NfcScannerSheetState extends State<NfcScannerSheet> with SingleTickerProv
             
           const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+
+  Widget _buildScanningAnimation() {
+    return AnimatedBuilder(
+      key: const ValueKey('scanning'),
+      animation: _pulseCtrl,
+      builder: (context, child) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Outer pulse
+            Container(
+              width: 140 + (_pulseCtrl.value * 40),
+              height: 140 + (_pulseCtrl.value * 40),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF007AFF).withValues(alpha: 0.1 * (1 - _pulseCtrl.value)),
+              ),
+            ),
+            // Inner pulse
+            Container(
+              width: 110 + (_pulseCtrl.value * 20),
+              height: 110 + (_pulseCtrl.value * 20),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF007AFF).withValues(alpha: 0.15 * (1 - _pulseCtrl.value)),
+              ),
+            ),
+            // Core circle
+            Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.contactless_rounded,
+                    size: 38,
+                    color: const Color(0xFF007AFF).withValues(alpha: 0.5),
+                  ),
+                  Transform.translate(
+                    offset: Offset(0, 10 - (_pulseCtrl.value * 20)),
+                    child: const Icon(
+                      Icons.smartphone_rounded,
+                      size: 38,
+                      color: Color(0xFF007AFF),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSuccessIcon() {
+    return Container(
+      key: const ValueKey('success'),
+      width: 110,
+      height: 110,
+      decoration: BoxDecoration(
+        color: const Color(0xFF34C759).withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.check_rounded,
+          size: 54,
+          color: Color(0xFF34C759),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorIcon() {
+    return Container(
+      key: const ValueKey('error'),
+      width: 110,
+      height: 110,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF3B30).withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.close_rounded,
+          size: 54,
+          color: Color(0xFFFF3B30),
+        ),
       ),
     );
   }

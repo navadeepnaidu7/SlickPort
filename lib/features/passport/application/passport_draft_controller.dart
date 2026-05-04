@@ -18,6 +18,7 @@ class PassportDraftController extends StateNotifier<PassportProfile> {
             expiryDate: '2031-08-15',
             imagePath: '',
             mrzRaw: 'P<USAMAYA<<JOHNSON<<<<<<<<<<<<<<<<<<<<<<\nE12345678USA9104129F3108157<<<<<<<<<<<<<<04',
+            isEPassport: true,
           ),
         );
 
@@ -34,6 +35,8 @@ class PassportDraftController extends StateNotifier<PassportProfile> {
   void updateImagePath(String value) => state = state.copyWith(imagePath: value);
 
   void updateMrzRaw(String value) => state = state.copyWith(mrzRaw: value);
+
+  void updateIsEPassport(bool value) => state = state.copyWith(isEPassport: value);
 
   void replaceWith(PassportProfile profile) => state = profile;
 
