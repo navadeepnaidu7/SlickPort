@@ -5,6 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../ids/application/id_list_provider.dart';
+import '../../ids/domain/id_document.dart';
+import '../../ids/presentation/add_id_sheet.dart';
+import '../../ids/presentation/id_entry_screen.dart';
+import '../../ids/presentation/wallet_id_card.dart';
 import '../../passport/application/passport_draft_controller.dart';
 import '../../passport/application/passport_list_provider.dart';
 import '../../passport/domain/passport_profile.dart';
@@ -23,6 +28,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   late final AnimationController _entryCtrl;
   late final Animation<double> _entryFade;
   late final Animation<Offset> _entrySlide;
+  late final TabController _tabCtrl;
 
   @override
   void initState() {
@@ -42,12 +48,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       parent: _entryCtrl,
       curve: const Interval(0.0, 0.8, curve: Curves.easeOutQuart),
     ));
+    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl.addListener(() => setState(() {}));
     _entryCtrl.forward();
   }
 
   @override
   void dispose() {
     _entryCtrl.dispose();
+    _tabCtrl.dispose();
     super.dispose();
   }
 
@@ -79,18 +88,56 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
+  void _openIdEntry(IdDocumentType type) {
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 680),
+        reverseTransitionDuration: const Duration(milliseconds: 400),
+        pageBuilder: (_, _, _) => IdEntryScreen(type: type),
+        transitionsBuilder: (_, Animation<double> animation, _, Widget child) {
+          final Animation<double> curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.06),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   void _showAddSheet() {
     HapticFeedback.mediumImpact();
-    showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _AddItemSheet(onAddPassport: () {
-        Navigator.of(context).pop();
-        _showPassportTypeSheet();
-      }),
-    );
+    if (_tabCtrl.index == 1) {
+      // IDs tab
+      showModalBottomSheet<void>(
+        context: context,
+        useSafeArea: true,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => AddIdSheet(onSelectType: _openIdEntry),
+      );
+    } else {
+      // Passports tab
+      showModalBottomSheet<void>(
+        context: context,
+        useSafeArea: true,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _AddItemSheet(onAddPassport: () {
+          Navigator.of(context).pop();
+          _showPassportTypeSheet();
+        }),
+      );
+    }
   }
 
   void _showPassportTypeSheet() {
@@ -151,11 +198,41 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
+  void _showDeleteIdDialog(IdDocument doc) {
+    HapticFeedback.heavyImpact();
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Remove ID Card?'),
+          content: Text(
+              'Are you sure you want to remove ${doc.holderName.isEmpty ? 'this card' : "${doc.holderName}'s"} ${doc.type == IdDocumentType.pan ? 'PAN Card' : 'Aadhaar Card'} from your wallet?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                ref.read(idListProvider.notifier).removeDocument(doc.id);
+                Navigator.of(ctx).pop();
+              },
+              child: const Text('Remove',
+                  style: TextStyle(
+                      color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<PassportProfile> passports = ref.watch(passportListProvider);
+    final List<IdDocument> idDocs = ref.watch(idListProvider);
 
-    // Get the currently displayed profile name for the header greeting
     final String currentName = passports.isNotEmpty ? passports.first.name : '';
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -165,95 +242,140 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         extendBody: true,
         body: Stack(
           children: <Widget>[
-            // — deep background —
             const _WalletBackdrop(),
-
-            // — main scrollable content —
             SafeArea(
               child: FadeTransition(
                 opacity: _entryFade,
                 child: SlideTransition(
                   position: _entrySlide,
-                  child: CustomScrollView(
-                    physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics(),
-                    ),
-                    slivers: <Widget>[
-                      // gear icon header
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(26, 40, 22, 0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              // Greeting
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    () {
-                                      final hour = DateTime.now().hour;
-                                      if (hour < 12) return 'Good morning,';
-                                      if (hour < 17) return 'Good afternoon,';
-                                      return 'Good evening,';
-                                    }(),
-                                    style: const TextStyle(
-                                      color: Color(0xFF8E8E93),
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: -0.2,
-                                    ),
+                  child: Column(
+                    children: [
+                      // ── Header ──────────────────────────────────────────
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(26, 40, 22, 0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  () {
+                                    final hour = DateTime.now().hour;
+                                    if (hour < 12) return 'Good morning,';
+                                    if (hour < 17) return 'Good afternoon,';
+                                    return 'Good evening,';
+                                  }(),
+                                  style: const TextStyle(
+                                    color: Color(0xFF8E8E93),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -0.2,
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    currentName.isEmpty ? 'User' : currentName.split(' ').first,
-                                    style: const TextStyle(
-                                      color: Color(0xFF1C1C1E),
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -1.2,
-                                    ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  currentName.isEmpty
+                                      ? 'User'
+                                      : currentName.split(' ').first,
+                                  style: const TextStyle(
+                                    color: Color(0xFF1C1C1E),
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -1.2,
                                   ),
-                                ],
-                              ),
-                              // gear button
-                              _GlassIconButton(
-                                icon: Icons.settings_rounded,
-                                onTap: _showSettingsSheet,
-                              ),
-                            ],
-                          ),
+                                ),
+                              ],
+                            ),
+                            _GlassIconButton(
+                              icon: Icons.settings_rounded,
+                              onTap: _showSettingsSheet,
+                            ),
+                          ],
                         ),
                       ),
 
-                      // passport cards page view
-                      SliverFillRemaining(
-                        hasScrollBody: true,
-                        child: PageView.builder(
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: passports.isEmpty ? 1 : passports.length,
-                          itemBuilder: (context, index) {
-                            if (passports.isEmpty) {
-                              return Padding(
-                                padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-                                child: Center(
-                                  child: WalletPassportCard(profile: PassportProfile.empty()),
-                                ),
-                              );
-                            }
+                      const SizedBox(height: 20),
 
-                            final profile = passports[index];
-                            return Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-                              child: Center(
-                                child: WalletPassportCard(
-                                  profile: profile,
-                                  onLongPress: () => _showDeleteDialog(profile),
-                                ),
-                              ),
-                            );
-                          },
+                      // ── Frosted pill tab bar ─────────────────────────────
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 26),
+                        child: _PillTabBar(controller: _tabCtrl),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // ── Tab content ──────────────────────────────────────
+                      Expanded(
+                        child: TabBarView(
+                          controller: _tabCtrl,
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: [
+                            // Tab 0: Passports
+                            PageView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              itemCount:
+                                  passports.isEmpty ? 1 : passports.length,
+                              itemBuilder: (context, index) {
+                                if (passports.isEmpty) {
+                                  return Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        20, 16, 20, 100),
+                                    child: Center(
+                                      child: WalletPassportCard(
+                                          profile: PassportProfile.empty()),
+                                    ),
+                                  );
+                                }
+                                final profile = passports[index];
+                                return Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      20, 16, 20, 100),
+                                  child: Center(
+                                    child: WalletPassportCard(
+                                      profile: profile,
+                                      onLongPress: () =>
+                                          _showDeleteDialog(profile),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            // Tab 1: IDs
+                            idDocs.isEmpty
+                                ? _EmptyIdsState(
+                                    onAdd: () {
+                                      showModalBottomSheet<void>(
+                                        context: context,
+                                        useSafeArea: true,
+                                        isScrollControlled: true,
+                                        backgroundColor: Colors.transparent,
+                                        builder: (_) => AddIdSheet(
+                                            onSelectType: _openIdEntry),
+                                      );
+                                    },
+                                  )
+                                : PageView.builder(
+                                    physics: const BouncingScrollPhysics(),
+                                    itemCount: idDocs.length,
+                                    itemBuilder: (context, index) {
+                                      final doc = idDocs[index];
+                                      return Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                            20, 16, 20, 100),
+                                        child: Center(
+                                          child: WalletIdCard(
+                                            document: doc,
+                                            onLongPress: () =>
+                                                _showDeleteIdDialog(doc),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ],
                         ),
                       ),
                     ],
@@ -262,7 +384,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               ),
             ),
 
-            // — floating add FAB —
+            // ── FAB ──────────────────────────────────────────────────────
             Positioned(
               bottom: 0,
               left: 0,
@@ -274,6 +396,121 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   child: Center(
                     child: _AddFab(onTap: _showAddSheet),
                   ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── FROSTED PILL TAB BAR ─────────────────────────────────────────────────────
+
+class _PillTabBar extends StatelessWidget {
+  const _PillTabBar({required this.controller});
+  final TabController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
+          ),
+          child: TabBar(
+            controller: controller,
+            indicator: BoxDecoration(
+              color: const Color(0xFF1C1C1E),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            indicatorSize: TabBarIndicatorSize.tab,
+            dividerColor: Colors.transparent,
+            labelColor: Colors.white,
+            unselectedLabelColor: const Color(0xFF8E8E93),
+            labelStyle: const TextStyle(
+                fontSize: 14, fontWeight: FontWeight.w700),
+            unselectedLabelStyle: const TextStyle(
+                fontSize: 14, fontWeight: FontWeight.w600),
+            padding: const EdgeInsets.all(4),
+            tabs: const [
+              Tab(text: 'Passports'),
+              Tab(text: 'IDs'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── EMPTY IDs STATE ──────────────────────────────────────────────────────────
+
+class _EmptyIdsState extends StatelessWidget {
+  const _EmptyIdsState({required this.onAdd});
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(32, 0, 32, 100),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C3252).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.badge_rounded,
+                  color: Color(0xFF1C3252), size: 36),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'No ID Cards Yet',
+              style: TextStyle(
+                  color: Color(0xFF1C1C1E),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Add your PAN Card or Aadhaar Card\nto keep them handy.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Color(0xFF8E8E93), fontSize: 15, height: 1.5),
+            ),
+            const SizedBox(height: 28),
+            GestureDetector(
+              onTap: onAdd,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1C3252),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text('Add ID Card',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15)),
+                  ],
                 ),
               ),
             ),
@@ -629,15 +866,6 @@ class _AddItemSheet extends StatelessWidget {
                   iconColor: const Color(0xFF19D3C5),
                   title: 'Ticket',
                   subtitle: 'Flight, train or event ticket',
-                  onTap: () => Navigator.of(context).pop(),
-                  comingSoon: true,
-                ),
-                const SizedBox(height: 12),
-                _AddOption(
-                  icon: Icons.badge_rounded,
-                  iconColor: const Color(0xFFFFB703),
-                  title: 'ID Card',
-                  subtitle: 'Aadhaar, PAN or any national ID',
                   onTap: () => Navigator.of(context).pop(),
                   comingSoon: true,
                 ),
