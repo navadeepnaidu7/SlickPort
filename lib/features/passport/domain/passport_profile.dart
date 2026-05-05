@@ -1,7 +1,16 @@
 import 'dart:convert';
+import 'dart:math';
+
+String _generateId() {
+  final rand = Random();
+  final ts = DateTime.now().millisecondsSinceEpoch;
+  final suffix = rand.nextInt(99999).toString().padLeft(5, '0');
+  return '$ts$suffix';
+}
 
 class PassportProfile {
-  const PassportProfile({
+  PassportProfile({
+    String? id,
     required this.name,
     required this.passportNumber,
     required this.nationality,
@@ -14,10 +23,11 @@ class PassportProfile {
     this.issuingAuthority = '',
     this.gender = '',
     this.isEPassport = false,
-  });
+  }) : id = id ?? _generateId();
 
-  const PassportProfile.empty()
-      : name = '',
+  PassportProfile.empty()
+      : id = _generateId(),
+        name = '',
         passportNumber = '',
         nationality = '',
         dateOfBirth = '',
@@ -30,6 +40,7 @@ class PassportProfile {
         gender = '',
         isEPassport = false;
 
+  final String id;
   final String name;
   final String passportNumber;
   final String nationality;
@@ -44,6 +55,7 @@ class PassportProfile {
   final bool isEPassport;
 
   PassportProfile copyWith({
+    String? id,
     String? name,
     String? passportNumber,
     String? nationality,
@@ -58,6 +70,7 @@ class PassportProfile {
     bool? isEPassport,
   }) {
     return PassportProfile(
+      id: id ?? this.id,
       name: name ?? this.name,
       passportNumber: passportNumber ?? this.passportNumber,
       nationality: nationality ?? this.nationality,
@@ -75,6 +88,7 @@ class PassportProfile {
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'name': name,
       'passportNumber': passportNumber,
       'nationality': nationality,
@@ -92,6 +106,7 @@ class PassportProfile {
 
   factory PassportProfile.fromMap(Map<String, dynamic> map) {
     return PassportProfile(
+      id: map['id'] as String?,
       name: map['name'] ?? '',
       passportNumber: map['passportNumber'] ?? '',
       nationality: map['nationality'] ?? '',

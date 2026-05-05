@@ -199,9 +199,29 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
 
   void _saveDraft() {
     _syncDraft();
+
+    final profile = ref.read(passportDraftProvider);
+
+    // Require at least a name or passport number before saving
+    if (profile.name.trim().isEmpty && profile.passportNumber.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(children: [
+            Icon(Icons.warning_rounded, color: Colors.white),
+            SizedBox(width: 10),
+            Text('Please fill in at least your name or passport number.'),
+          ]),
+          backgroundColor: const Color(0xFFFF3B30),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     HapticFeedback.heavyImpact();
     // Save to global list for Dashboard
-    final profile = ref.read(passportDraftProvider);
     ref.read(passportListProvider.notifier).addPassport(profile);
 
     // Show full screen success overlay
@@ -226,8 +246,6 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final PassportProfile profile = ref.watch(passportDraftProvider);
-
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -262,6 +280,8 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
                   child: _modeIndex == 0
                       ? _EPassportPanel(
                           key: const ValueKey<String>('epassport'),
+                          nameController: _nameController,
+                          nationalityController: _nationalityController,
                           passportNumberController: _passportNumberController,
                           dateOfBirthController: _dateOfBirthController,
                           expiryDateController: _expiryDateController,
@@ -635,6 +655,8 @@ class _ModeOption extends StatelessWidget {
 class _EPassportPanel extends StatelessWidget {
   const _EPassportPanel({
     super.key,
+    required this.nameController,
+    required this.nationalityController,
     required this.passportNumberController,
     required this.dateOfBirthController,
     required this.expiryDateController,
@@ -643,6 +665,8 @@ class _EPassportPanel extends StatelessWidget {
     required this.onScanCamera,
   });
 
+  final TextEditingController nameController;
+  final TextEditingController nationalityController;
   final TextEditingController passportNumberController;
   final TextEditingController dateOfBirthController;
   final TextEditingController expiryDateController;
@@ -727,16 +751,37 @@ class _EPassportPanel extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.only(bottom: 16, top: 4),
             child: Text(
-              'Enter these three details, then tap Verify Identity to scan your E-Passport.',
+              'Enter your details below, then tap Verify Identity to scan your E-Passport chip.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Color(0xFF64748B), height: 1.4),
             ),
           ),
           _StudioField(
-            controller: passportNumberController,
-            label: 'Passport number',
-            icon: Icons.confirmation_number_rounded,
+            controller: nameController,
+            label: 'Full name',
+            icon: Icons.person_rounded,
             onChanged: onChanged,
+          ),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _StudioField(
+                  controller: nationalityController,
+                  label: 'Nationality',
+                  icon: Icons.flag_rounded,
+                  onChanged: onChanged,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _StudioField(
+                  controller: passportNumberController,
+                  label: 'Passport No.',
+                  icon: Icons.confirmation_number_rounded,
+                  onChanged: onChanged,
+                ),
+              ),
+            ],
           ),
           Row(
             children: <Widget>[

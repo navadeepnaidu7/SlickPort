@@ -17,20 +17,27 @@ class PassportListController extends StateNotifier<List<PassportProfile>> {
   Future<void> loadPassports() async {
     final prefs = await SharedPreferences.getInstance();
     final List<String>? savedData = prefs.getStringList(_storageKey);
-    
+
     if (savedData != null && savedData.isNotEmpty) {
       state = savedData.map((str) => PassportProfile.fromJson(str)).toList();
     } else {
       // Load default demo profile if completely empty
       state = [
-        const PassportProfile(
+        PassportProfile(
+          id: 'demo_maya_001',
           name: 'Maya Johnson',
           passportNumber: 'E12345678',
-          nationality: 'USA',
-          dateOfBirth: '910412', // YYMMDD for BAC
-          expiryDate: '310815', // YYMMDD for BAC
+          nationality: 'American',
+          dateOfBirth: '1991-04-12',
+          expiryDate: '2031-08-15',
           imagePath: '',
-          mrzRaw: 'P<USAMAYA<<JOHNSON<<<<<<<<<<<<<<<<<<<<<<\nE12345678USA9104129F3108157<<<<<<<<<<<<<<04',
+          mrzRaw:
+              'P<USAMAYA<<JOHNSON<<<<<<<<<<<<<<<<<<<<<<<<\nE12345678USA9104129F3108157<<<<<<<<<<<<<<04',
+          isEPassport: true,
+          gender: 'F',
+          placeOfBirth: 'New York, USA',
+          issueDate: '2021-08-15',
+          issuingAuthority: 'US Department of State',
         )
       ];
     }
@@ -49,8 +56,10 @@ class PassportListController extends StateNotifier<List<PassportProfile>> {
     _savePassports(newState);
   }
 
-  void removePassport(String passportNumber) {
-    final newState = state.where((p) => p.passportNumber != passportNumber).toList();
+  /// Removes a passport by its unique [id] — NOT by passport number,
+  /// so multiple cards with the same number are never accidentally bulk-deleted.
+  void removePassport(String id) {
+    final newState = state.where((p) => p.id != id).toList();
     state = newState;
     _savePassports(newState);
   }

@@ -140,7 +140,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ),
             TextButton(
               onPressed: () {
-                ref.read(passportListProvider.notifier).removePassport(profile.passportNumber);
+                ref.read(passportListProvider.notifier).removePassport(profile.id);
                 Navigator.of(ctx).pop();
               },
               child: const Text('Remove', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
@@ -235,8 +235,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           itemCount: passports.isEmpty ? 1 : passports.length,
                           itemBuilder: (context, index) {
                             if (passports.isEmpty) {
-                              return const Padding(
-                                padding: EdgeInsets.fromLTRB(20, 16, 20, 100),
+                              return Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
                                 child: Center(
                                   child: WalletPassportCard(profile: PassportProfile.empty()),
                                 ),
