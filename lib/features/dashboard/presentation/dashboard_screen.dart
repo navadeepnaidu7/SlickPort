@@ -14,6 +14,7 @@ import '../../passport/application/passport_draft_controller.dart';
 import '../../passport/application/passport_list_provider.dart';
 import '../../passport/domain/passport_profile.dart';
 import '../../passport/presentation/passport_entry_screen.dart';
+import '../../tickets/presentation/tickets_tab.dart';
 import 'wallet_passport_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -333,7 +334,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                             ),
 
                             // Tab 1: Tickets
-                            const _EmptyTicketsState(),
+                            const TicketsTab(),
                           ],
                         ),
                       ),
@@ -480,43 +481,6 @@ class _DocsTab extends StatelessWidget {
 }
 
 // ─── EMPTY TICKETS STATE ──────────────────────────────────────────────────────
-
-class _EmptyTicketsState extends StatelessWidget {
-  const _EmptyTicketsState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(32, 0, 32, 100),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72, height: 72,
-              decoration: BoxDecoration(
-                color: const Color(0xFF19D3C5).withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.confirmation_number_rounded,
-                  color: Color(0xFF19D3C5), size: 36),
-            ),
-            const SizedBox(height: 20),
-            const Text('Tickets Coming Soon',
-                style: TextStyle(color: Color(0xFF1C1C1E),
-                    fontSize: 22, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            const Text(
-              'Store flight, train, bus and event\ntickets in your wallet.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF8E8E93), fontSize: 15, height: 1.5),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ─── BACKDROP ────────────────────────────────────────────────────────────────
 
