@@ -11,7 +11,7 @@ class TicketsTab extends StatefulWidget {
 }
 
 class _TicketsTabState extends State<TicketsTab> {
-  int _filterIndex = 0; // 0 = Active, 1 = Expired
+  int _filterIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -22,13 +22,14 @@ class _TicketsTabState extends State<TicketsTab> {
         .toList();
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Active / Expired filter ──────────────────────────────────
+        // ── Filter pills ─────────────────────────────────────────────
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
           child: Row(
             children: [
-              _FilterChip(
+              _FilterPill(
                 label: 'Active',
                 selected: _filterIndex == 0,
                 onTap: () {
@@ -36,8 +37,8 @@ class _TicketsTabState extends State<TicketsTab> {
                   setState(() => _filterIndex = 0);
                 },
               ),
-              const SizedBox(width: 10),
-              _FilterChip(
+              const SizedBox(width: 8),
+              _FilterPill(
                 label: 'Expired',
                 selected: _filterIndex == 1,
                 onTap: () {
@@ -49,41 +50,20 @@ class _TicketsTabState extends State<TicketsTab> {
           ),
         ),
 
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
 
-        // ── Ticket cards ─────────────────────────────────────────────
+        // ── Cards ────────────────────────────────────────────────────
         Expanded(
           child: filtered.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.confirmation_number_outlined,
-                          color: Colors.grey.shade400, size: 48),
-                      const SizedBox(height: 16),
-                      Text(
-                        _filterIndex == 0
-                            ? 'No active tickets'
-                            : 'No expired tickets',
-                        style: const TextStyle(
-                            color: Color(0xFF8E8E93),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                )
+              ? _EmptyState(isActive: _filterIndex == 0)
               : PageView.builder(
+                  padEnds: true,
                   physics: const BouncingScrollPhysics(),
                   itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                      child: Center(
-                        child: WalletTicketCard(ticket: filtered[index]),
-                      ),
-                    );
-                  },
+                  itemBuilder: (context, index) => Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 80),
+                    child: WalletTicketCard(ticket: filtered[index]),
+                  ),
                 ),
         ),
       ],
@@ -91,8 +71,10 @@ class _TicketsTabState extends State<TicketsTab> {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
+// ── Filter pill ───────────────────────────────────────────────────────────────
+
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({
     required this.label,
     required this.selected,
     required this.onTap,
@@ -109,14 +91,14 @@ class _FilterChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
         decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF1C1C1E)
-              : Colors.white.withValues(alpha: 0.6),
+          color: selected ? const Color(0xFF1F3A60) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? const Color(0xFF1C1C1E) : Colors.white,
+            color: selected
+                ? const Color(0xFF1F3A60)
+                : Colors.black.withValues(alpha: 0.15),
             width: 1.5,
           ),
         ),
@@ -125,9 +107,41 @@ class _FilterChip extends StatelessWidget {
           style: TextStyle(
             color: selected ? Colors.white : const Color(0xFF8E8E93),
             fontSize: 13,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.isActive});
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.confirmation_number_outlined,
+            size: 44,
+            color: Colors.black.withValues(alpha: 0.2),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            isActive ? 'No active tickets' : 'No expired tickets',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black.withValues(alpha: 0.35),
+            ),
+          ),
+        ],
       ),
     );
   }

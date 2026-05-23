@@ -55,19 +55,19 @@ final List<MockTicket> mockTickets = [
   const MockTicket(
     id: 'mock_t1',
     operator: 'IRCTC',
-    trainName: '12427 RAJDHANI EXPRESS',
+    trainName: '12427 Rajdhani Express',
     fromCode: 'NZM',
     fromName: 'H. Nizamuddin',
     toCode: 'NDLS',
     toName: 'New Delhi',
     departTime: '08:40',
     arriveTime: '13:10',
-    date: '23 Mar, 2024',
+    date: '23 Mar 2024',
     duration: '4h 30m',
     ticketClass: 'AC 2 Tier',
     coach: 'B2',
     seat: '23',
-    berth: 'LB',
+    berth: 'Lower',
     passengerName: 'Navadeep Naidu',
     pnr: '2432587612',
     bookingId: 'E12345678',
@@ -77,19 +77,19 @@ final List<MockTicket> mockTickets = [
   const MockTicket(
     id: 'mock_t2',
     operator: 'IRCTC',
-    trainName: '12951 MUMBAI RAJDHANI',
+    trainName: '12951 Mumbai Rajdhani',
     fromCode: 'NDLS',
     fromName: 'New Delhi',
     toCode: 'BCT',
     toName: 'Mumbai Central',
     departTime: '16:55',
     arriveTime: '08:15',
-    date: '10 Jan, 2024',
+    date: '10 Jan 2024',
     duration: '15h 20m',
     ticketClass: 'AC 3 Tier',
     coach: 'A1',
     seat: '45',
-    berth: 'UB',
+    berth: 'Upper',
     passengerName: 'Navadeep Naidu',
     pnr: '8821456730',
     bookingId: 'E98765432',
@@ -98,7 +98,19 @@ final List<MockTicket> mockTickets = [
   ),
 ];
 
-// ── Compact card (same height pattern as passport card) ───────────────────────
+// ── Palette helpers ───────────────────────────────────────────────────────────
+
+// Active: rich indigo-to-blue gradient (Apple Wallet blue)
+const _kActiveTop = Color(0xFF1B3A6B);
+const _kActiveBot = Color(0xFF0A1F3D);
+const _kActiveAccent = Color(0xFF4A90D9);
+
+// Expired: muted slate
+const _kExpiredTop = Color(0xFF3A3A3C);
+const _kExpiredBot = Color(0xFF1C1C1E);
+const _kExpiredAccent = Color(0xFF8E8E93);
+
+// ── Card ──────────────────────────────────────────────────────────────────────
 
 class WalletTicketCard extends StatefulWidget {
   const WalletTicketCard({super.key, required this.ticket});
@@ -108,8 +120,33 @@ class WalletTicketCard extends StatefulWidget {
   State<WalletTicketCard> createState() => _WalletTicketCardState();
 }
 
-class _WalletTicketCardState extends State<WalletTicketCard> {
-  bool _pressed = false;
+class _WalletTicketCardState extends State<WalletTicketCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pressCtrl;
+  late final Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pressCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+      reverseDuration: const Duration(milliseconds: 200),
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.965).animate(
+      CurvedAnimation(parent: _pressCtrl, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pressCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails _) => _pressCtrl.forward();
+  void _onTapUp(TapUpDetails _) => _pressCtrl.reverse();
+  void _onTapCancel() => _pressCtrl.reverse();
 
   void _openDetail() {
     HapticFeedback.mediumImpact();
@@ -117,6 +154,7 @@ class _WalletTicketCardState extends State<WalletTicketCard> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (_) => _TicketDetailSheet(ticket: widget.ticket),
     );
   }
@@ -125,230 +163,462 @@ class _WalletTicketCardState extends State<WalletTicketCard> {
   Widget build(BuildContext context) {
     final t = widget.ticket;
     final bool isActive = t.status == TicketStatus.active;
-    final Color accent =
-        isActive ? const Color(0xFF34C759) : const Color(0xFF8E8E93);
+    final Color topColor = isActive ? _kActiveTop : _kExpiredTop;
+    final Color botColor = isActive ? _kActiveBot : _kExpiredBot;
+    final Color accent = isActive ? _kActiveAccent : _kExpiredAccent;
 
     return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapCancel: () => setState(() => _pressed = false),
-      onTapUp: (_) => setState(() => _pressed = false),
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
       onTap: _openDetail,
-      child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOutCubic,
+      child: ScaleTransition(
+        scale: _scaleAnim,
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A2E),
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.32),
-                blurRadius: 36,
-                offset: const Offset(0, 14),
+                color: (isActive ? _kActiveTop : Colors.black)
+                    .withValues(alpha: 0.45),
+                blurRadius: 40,
+                offset: const Offset(0, 18),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            borderRadius: BorderRadius.circular(24),
+            child: Stack(
               children: [
-                // ── Top accent bar ──────────────────────────────────
-                Container(
-                  height: 3,
-                  color: isActive
-                      ? const Color(0xFF34C759)
-                      : const Color(0xFF3A3A4E),
-                ),
-
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Operator + status
-                      Row(
-                        children: [
-                          Container(
-                            width: 32, height: 32,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF252540),
-                              borderRadius: BorderRadius.circular(9),
-                            ),
-                            child: const Icon(Icons.train_rounded,
-                                color: Color(0xFF4C7CFF), size: 18),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(t.operator,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700)),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 9, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: accent.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 6, height: 6,
-                                  decoration: BoxDecoration(
-                                      color: accent, shape: BoxShape.circle),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  isActive ? 'ON TIME' : 'COMPLETED',
-                                  style: TextStyle(
-                                      color: accent,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.4),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                // ── Gradient background ─────────────────────────────
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [topColor, botColor],
                       ),
-
-                      const SizedBox(height: 20),
-
-                      // Route — big station codes
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(t.fromCode,
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 34,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -1)),
-                              Text(t.fromName,
-                                  style: const TextStyle(
-                                      color: Color(0xFF8E8E93), fontSize: 11)),
-                            ],
-                          ),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(child: _DashedLine()),
-                                    Container(
-                                      width: 30, height: 30,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF252540),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(Icons.train_rounded,
-                                          color: Colors.white54, size: 16),
-                                    ),
-                                    Expanded(child: _DashedLine()),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(t.duration,
-                                    style: const TextStyle(
-                                        color: Color(0xFF8E8E93),
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600)),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(t.toCode,
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 34,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -1)),
-                              Text(t.toName,
-                                  style: const TextStyle(
-                                      color: Color(0xFF8E8E93), fontSize: 11)),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Times + date
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _TimeBlock(time: t.departTime, date: t.date, align: CrossAxisAlignment.start),
-                          Text(t.ticketClass,
-                              style: const TextStyle(
-                                  color: Color(0xFF8E8E93),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600)),
-                          _TimeBlock(time: t.arriveTime, date: t.date, align: CrossAxisAlignment.end),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Progress bar
-                      _ProgressTrack(
-                          progress: t.progressFraction, isActive: isActive),
-
-                      const SizedBox(height: 16),
-                    ],
+                    ),
                   ),
                 ),
 
-                // ── Perforated divider ──────────────────────────────
-                _PerforatedDivider(),
-
-                // ── Bottom strip: passenger + tap hint ─────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.person_outline_rounded,
-                          color: Color(0xFF8E8E93), size: 18),
-                      const SizedBox(width: 8),
-                      Text(t.passengerName,
-                          style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600)),
-                      const Spacer(),
-                      Text('${t.coach} · ${t.seat}',
-                          style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF252540),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(t.berth,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700)),
+                // ── Subtle radial glow top-right ────────────────────
+                Positioned(
+                  top: -60,
+                  right: -40,
+                  child: Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          accent.withValues(alpha: 0.18),
+                          Colors.transparent,
+                        ],
                       ),
-                    ],
+                    ),
+                  ),
+                ),
+
+                // ── Card content ────────────────────────────────────
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _CardHeader(t: t, accent: accent, isActive: isActive),
+                    _TearLine(cardColor: botColor),
+                    _CardFooter(t: t),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Card header (main body above tear line) ───────────────────────────────────
+
+class _CardHeader extends StatelessWidget {
+  const _CardHeader({
+    required this.t,
+    required this.accent,
+    required this.isActive,
+  });
+  final MockTicket t;
+  final Color accent;
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Operator row
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.train_rounded,
+                    color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t.operator,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  Text(
+                    t.trainName,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              _StatusPill(isActive: isActive, accent: accent),
+            ],
+          ),
+
+          const SizedBox(height: 28),
+
+          // Route — big station codes
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // From
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t.fromCode,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 42,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -2,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    t.departTime,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    t.fromName,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Middle — duration + arrow
+              Expanded(
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: Colors.white.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Colors.white.withValues(alpha: 0.5),
+                            size: 16,
+                          ),
+                        ),
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: Colors.white.withValues(alpha: 0.2),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      t.duration,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // To
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    t.toCode,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 42,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -2,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    t.arriveTime,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    t.toName,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 22),
+
+          // Date + class row
+          Row(
+            children: [
+              _MetaChip(label: t.date),
+              const SizedBox(width: 8),
+              _MetaChip(label: t.ticketClass),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Card footer (below tear line) ────────────────────────────────────────────
+
+class _CardFooter extends StatelessWidget {
+  const _CardFooter({required this.t});
+  final MockTicket t;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 14, 22, 18),
+      child: Row(
+        children: [
+          // Passenger
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'PASSENGER',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  t.passengerName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
                   ),
                 ),
               ],
             ),
           ),
+          // Coach · Seat · Berth
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'SEAT',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '${t.coach} · ${t.seat} · ${t.berth}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Tear line ─────────────────────────────────────────────────────────────────
+
+class _TearLine extends StatelessWidget {
+  const _TearLine({required this.cardColor});
+  final Color cardColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 20,
+      child: CustomPaint(
+        painter: _TearLinePainter(cardColor: cardColor),
+        size: const Size(double.infinity, 20),
+      ),
+    );
+  }
+}
+
+class _TearLinePainter extends CustomPainter {
+  const _TearLinePainter({required this.cardColor});
+  final Color cardColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final notchR = 10.0;
+    final dashPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.15)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+    final notchPaint = Paint()
+      ..color = const Color(0xFFF5F1E9) // matches scaffold background
+      ..style = PaintingStyle.fill;
+
+    // Left notch
+    canvas.drawCircle(Offset(0, size.height / 2), notchR, notchPaint);
+    // Right notch
+    canvas.drawCircle(
+        Offset(size.width, size.height / 2), notchR, notchPaint);
+
+    // Dashed line
+    double x = notchR * 2;
+    final y = size.height / 2;
+    while (x < size.width - notchR * 2) {
+      canvas.drawLine(Offset(x, y), Offset(x + 5, y), dashPaint);
+      x += 10;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TearLinePainter old) =>
+      old.cardColor != cardColor;
+}
+
+// ── Status pill ───────────────────────────────────────────────────────────────
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.isActive, required this.accent});
+  final bool isActive;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: isActive ? const Color(0xFF30D158) : _kExpiredAccent,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            isActive ? 'Confirmed' : 'Completed',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Meta chip ─────────────────────────────────────────────────────────────────
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
@@ -365,181 +635,166 @@ class _TicketDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = ticket;
     final bool isActive = t.status == TicketStatus.active;
-    final Color accent =
-        isActive ? const Color(0xFF34C759) : const Color(0xFF8E8E93);
+    final Color topColor = isActive ? _kActiveTop : _kExpiredTop;
+    final Color botColor = isActive ? _kActiveBot : _kExpiredBot;
+    final Color accent = isActive ? _kActiveAccent : _kExpiredAccent;
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.88,
+      initialChildSize: 0.9,
       minChildSize: 0.5,
       maxChildSize: 0.95,
+      snap: true,
+      snapSizes: const [0.9],
       builder: (context, scrollCtrl) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1A1A2E),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F1E9),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: ListView(
           controller: scrollCtrl,
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+          padding: EdgeInsets.zero,
           children: [
-            // Handle
+            // ── Drag handle ─────────────────────────────────────────
             Center(
               child: Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 20),
-                width: 40, height: 4,
+                margin: const EdgeInsets.only(top: 10, bottom: 0),
+                width: 36,
+                height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white24,
+                  color: Colors.black.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
             ),
 
-            // Train name + status
-            Row(
-              children: [
-                Expanded(
-                  child: Text(t.trainName,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800)),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    isActive ? 'CONFIRMED' : 'COMPLETED',
-                    style: TextStyle(
-                        color: accent,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Route
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(t.fromCode,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900)),
-                      Text(t.fromName,
-                          style: const TextStyle(
-                              color: Color(0xFF8E8E93), fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Text(t.departTime,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700)),
-                      Text(t.date,
-                          style: const TextStyle(
-                              color: Color(0xFF8E8E93), fontSize: 12)),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.arrow_forward_rounded,
-                          color: Color(0xFF8E8E93), size: 20),
-                      const SizedBox(height: 4),
-                      Text(t.duration,
-                          style: const TextStyle(
-                              color: Color(0xFF8E8E93), fontSize: 11)),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(t.toCode,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900)),
-                      Text(t.toName,
-                          style: const TextStyle(
-                              color: Color(0xFF8E8E93), fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Text(t.arriveTime,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700)),
-                      Text(t.date,
-                          style: const TextStyle(
-                              color: Color(0xFF8E8E93), fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Details grid
-            _DetailGrid(items: [
-              ('CLASS', t.ticketClass),
-              ('COACH', t.coach),
-              ('SEAT', t.seat),
-              ('BERTH', t.berth),
-              ('PASSENGER', t.passengerName),
-              ('PNR', t.pnr),
-            ]),
-
-            const SizedBox(height: 24),
-
-            // Progress
-            _ProgressTrack(progress: t.progressFraction, isActive: isActive),
-
-            const SizedBox(height: 24),
-
-            // QR + booking ID
-            _PerforatedDivider(),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Container(
-                  width: 80, height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.qr_code_2_rounded,
-                      color: Colors.black, size: 64),
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(t.bookingId,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5)),
-                    const Text('Booking ID',
-                        style: TextStyle(
-                            color: Color(0xFF8E8E93), fontSize: 13)),
+            // ── Ticket card replica (header only) ───────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isActive ? _kActiveTop : Colors.black)
+                          .withValues(alpha: 0.35),
+                      blurRadius: 30,
+                      offset: const Offset(0, 12),
+                    ),
                   ],
                 ),
-              ],
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [topColor, botColor],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: -50,
+                        right: -30,
+                        child: Container(
+                          width: 180,
+                          height: 180,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                accent.withValues(alpha: 0.2),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      _CardHeader(t: t, accent: accent, isActive: isActive),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
+            // ── Details section ─────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SectionLabel('Journey Details'),
+                  const SizedBox(height: 12),
+                  _DetailRow('Train', t.trainName),
+                  _DetailRow('Date', t.date),
+                  _DetailRow('Duration', t.duration),
+                  _DetailRow('Class', t.ticketClass),
+
+                  const SizedBox(height: 24),
+                  _SectionLabel('Seat'),
+                  const SizedBox(height: 12),
+                  _DetailRow('Coach', t.coach),
+                  _DetailRow('Seat No.', t.seat),
+                  _DetailRow('Berth', t.berth),
+
+                  const SizedBox(height: 24),
+                  _SectionLabel('Passenger'),
+                  const SizedBox(height: 12),
+                  _DetailRow('Name', t.passengerName),
+                  _DetailRow('PNR', t.pnr),
+                  _DetailRow('Booking ID', t.bookingId),
+
+                  const SizedBox(height: 28),
+
+                  // ── QR code block ─────────────────────────────────
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 140,
+                          height: 140,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.qr_code_2_rounded,
+                              size: 120, color: Colors.black),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          t.pnr,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2,
+                            color: Color(0xFF0B1B34),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'PNR Number',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.black.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
           ],
         ),
@@ -548,161 +803,64 @@ class _TicketDetailSheet extends StatelessWidget {
   }
 }
 
-class _DetailGrid extends StatelessWidget {
-  const _DetailGrid({required this.items});
-  final List<(String, String)> items;
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: items.map((item) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    return Text(
+      text.toUpperCase(),
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.8,
+        color: Colors.black.withValues(alpha: 0.4),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow(this.label, this.value);
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
-          color: const Color(0xFF252540),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(item.$1,
-                style: const TextStyle(
-                    color: Color(0xFF8E8E93),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8)),
-            const SizedBox(height: 3),
-            Text(item.$2,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700)),
-          ],
-        ),
-      )).toList(),
-    );
-  }
-}
-
-// ── Shared helpers ────────────────────────────────────────────────────────────
-
-class _TimeBlock extends StatelessWidget {
-  const _TimeBlock({required this.time, required this.date, required this.align});
-  final String time;
-  final String date;
-  final CrossAxisAlignment align;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: align,
-      children: [
-        Text(time,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w800)),
-        Text(date,
-            style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 10)),
-      ],
-    );
-  }
-}
-
-class _DashedLine extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _DashPainter(),
-      child: const SizedBox(height: 1),
-    );
-  }
-}
-
-class _DashPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()..color = Colors.white24..strokeWidth = 1;
-    double x = 0;
-    while (x < size.width) {
-      canvas.drawLine(Offset(x, 0), Offset(x + 4, 0), p);
-      x += 8;
-    }
-  }
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
-}
-
-class _ProgressTrack extends StatelessWidget {
-  const _ProgressTrack({required this.progress, required this.isActive});
-  final double progress;
-  final bool isActive;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isActive ? const Color(0xFF34C759) : const Color(0xFF8E8E93);
-    return LayoutBuilder(builder: (context, c) {
-      final w = c.maxWidth;
-      final filled = (w * progress.clamp(0.0, 1.0));
-      return SizedBox(
-        height: 24,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(height: 3, decoration: BoxDecoration(
-              color: Colors.white12, borderRadius: BorderRadius.circular(2))),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Container(width: filled, height: 3,
-                  decoration: BoxDecoration(
-                    color: color, borderRadius: BorderRadius.circular(2))),
+          border: Border(
+            bottom: BorderSide(
+              color: Colors.black.withValues(alpha: 0.07),
+              width: 1,
             ),
-            Positioned(
-              left: (filled - 12).clamp(0, w - 24),
-              child: Container(
-                width: 24, height: 24,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A2E),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: color, width: 1.5),
-                ),
-                child: Icon(Icons.train_rounded, size: 12, color: color),
+          ),
+        ),
+        child: Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 15,
+                color: Color(0xFF0B1B34),
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 15,
+                color: Color(0xFF0B1B34),
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
-      );
-    });
-  }
-}
-
-class _PerforatedDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 20,
-      child: Row(
-        children: [
-          Container(width: 10, height: 20,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF2F2F7),
-                borderRadius: BorderRadius.only(
-                  topRight: Radius.circular(10),
-                  bottomRight: Radius.circular(10),
-                ))),
-          Expanded(child: CustomPaint(
-            painter: _DashPainter(),
-            child: const SizedBox(height: 1),
-          )),
-          Container(width: 10, height: 20,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF2F2F7),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(10),
-                  bottomLeft: Radius.circular(10),
-                ))),
-        ],
       ),
     );
   }
