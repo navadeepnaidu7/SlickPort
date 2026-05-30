@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/theme_provider.dart';
 import '../../ids/application/id_list_provider.dart';
 import '../../ids/domain/id_document.dart';
 import '../../ids/presentation/add_id_sheet.dart';
@@ -250,7 +251,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF2F2F7),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         extendBody: true,
         body: Stack(
           children: <Widget>[
@@ -279,8 +280,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                       if (hour < 17) return 'Good afternoon';
                                       return 'Good evening';
                                     }(),
-                                    style: const TextStyle(
-                                      color: Color(0xFF8E8E93),
+                                    style: TextStyle(
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.white.withValues(alpha: 0.45)
+                                          : const Color(0xFF8E8E93),
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
                                       letterSpacing: -0.1,
@@ -291,8 +294,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                     currentName.isEmpty
                                         ? 'Traveller'
                                         : currentName.split(' ').first,
-                                    style: const TextStyle(
-                                      color: Color(0xFF1C1C1E),
+                                    style: TextStyle(
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? const Color(0xFFF0F4FF)
+                                          : const Color(0xFF1C1C1E),
                                       fontSize: 28,
                                       fontWeight: FontWeight.w800,
                                       letterSpacing: -1.2,
@@ -643,6 +648,7 @@ class _PillTabBarState extends State<_PillTabBar> {
   @override
   Widget build(BuildContext context) {
     final double t = (widget.controller.animation!.value).clamp(0.0, 1.0);
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return ClipRRect(
       borderRadius: BorderRadius.circular(22),
       child: BackdropFilter(
@@ -651,10 +657,14 @@ class _PillTabBarState extends State<_PillTabBar> {
           height: 58,
           constraints: const BoxConstraints(maxWidth: 280),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.60),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.10)
+                : Colors.white.withValues(alpha: 0.60),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.85),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : Colors.white.withValues(alpha: 0.85),
               width: 0.5,
             ),
           ),
@@ -1030,7 +1040,7 @@ class _WalletBackdropState extends State<_WalletBackdrop>
   Widget build(BuildContext context) {
     return SizedBox.expand(
       child: DecoratedBox(
-        decoration: const BoxDecoration(color: Color(0xFFF2F2F7)),
+        decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor),
         child: RepaintBoundary(
           child: AnimatedBuilder(
             animation: Listenable.merge([_ctrl, _colorCtrl]),
@@ -1189,10 +1199,14 @@ class _NextTripChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1E).withValues(alpha: 0.06),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withValues(alpha: 0.08)
+                : const Color(0xFF1C1C1E).withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: const Color(0xFF1C1C1E).withValues(alpha: 0.08),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withValues(alpha: 0.10)
+                  : const Color(0xFF1C1C1E).withValues(alpha: 0.08),
               width: 0.5,
             ),
           ),
@@ -1210,8 +1224,10 @@ class _NextTripChip extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 'Next  ${t.fromCode} → ${t.toCode}',
-                style: const TextStyle(
-                  color: Color(0xFF1C1C1E),
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFFF0F4FF)
+                      : const Color(0xFF1C1C1E),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   letterSpacing: -0.2,
@@ -1220,17 +1236,21 @@ class _NextTripChip extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 '· ${t.date}',
-                style: const TextStyle(
-                  color: Color(0xFF8E8E93),
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withValues(alpha: 0.45)
+                      : const Color(0xFF8E8E93),
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 14,
-                color: Color(0xFF8E8E93),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.35)
+                    : const Color(0xFF8E8E93),
               ),
             ],
           ),
@@ -1277,7 +1297,9 @@ class _AvatarButtonState extends State<_AvatarButton> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E).withValues(alpha: 0.08),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.10)
+                    : const Color(0xFF1C1C1E).withValues(alpha: 0.08),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: Colors.white.withValues(alpha: 0.75),
@@ -1287,8 +1309,10 @@ class _AvatarButtonState extends State<_AvatarButton> {
               child: Center(
                 child: Text(
                   initial,
-                  style: const TextStyle(
-                    color: Color(0xFF1C1C1E),
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFFF0F4FF)
+                        : const Color(0xFF1C1C1E),
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.3,
@@ -1728,11 +1752,21 @@ class _AddOptionState extends State<_AddOption> {
 
 // ─── SETTINGS SHEET ───────────────────────────────────────────────────────────
 
-class _SettingsSheet extends StatelessWidget {
+class _SettingsSheet extends ConsumerWidget {
   const _SettingsSheet();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    final cs = Theme.of(context).colorScheme;
+    final sheetBg = isDark
+        ? const Color(0xFF111827).withValues(alpha: 0.98)
+        : Colors.white.withValues(alpha: 0.98);
+    final titleColor = isDark ? const Color(0xFFF0F4FF) : const Color(0xFF1C1C1E);
+    final handleColor = isDark
+        ? Colors.white.withValues(alpha: 0.12)
+        : const Color(0xFFE5E5EA);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: ClipRRect(
@@ -1742,11 +1776,11 @@ class _SettingsSheet extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.98),
+              color: sheetBg,
               borderRadius: BorderRadius.circular(36),
               boxShadow: <BoxShadow>[
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 30,
                   offset: const Offset(0, -10),
                 ),
@@ -1757,21 +1791,20 @@ class _SettingsSheet extends StatelessWidget {
               children: <Widget>[
                 Center(
                   child: Container(
-                    width: 40,
-                    height: 5,
+                    width: 40, height: 5,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE5E5EA),
+                      color: handleColor,
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
                 ),
                 const SizedBox(height: 28),
-                const Align(
+                Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'Wallet Settings',
                     style: TextStyle(
-                      color: Color(0xFF1C1C1E),
+                      color: titleColor,
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.3,
@@ -1793,12 +1826,11 @@ class _SettingsSheet extends StatelessWidget {
                   subtitle: 'Biometrics, PIN, data storage',
                 ),
                 const SizedBox(height: 12),
-                _SettingsRow(
-                  icon: Icons.palette_rounded,
-                  iconColor: const Color(0xFFFFB703),
-                  title: 'Appearance',
-                  subtitle: 'Card order, theme, display',
-                ),
+                // ── Dark mode toggle ──────────────────────────────────
+                _DarkModeRow(isDark: isDark, onToggle: () {
+                  HapticFeedback.selectionClick();
+                  ref.read(themeModeProvider.notifier).toggle();
+                }),
                 const SizedBox(height: 12),
                 _SettingsRow(
                   icon: Icons.info_outline_rounded,
@@ -1809,6 +1841,93 @@ class _SettingsSheet extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DarkModeRow extends StatelessWidget {
+  const _DarkModeRow({required this.isDark, required this.onToggle});
+  final bool isDark;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final rowBg = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : const Color(0xFFF2F2F7);
+    final titleColor = isDark ? const Color(0xFFF0F4FF) : const Color(0xFF1C1C1E);
+    final subtitleColor = isDark
+        ? Colors.white.withValues(alpha: 0.45)
+        : const Color(0xFF8E8E93);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onToggle,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: rowBg,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFF6E40C9).withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(
+                isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                color: const Color(0xFF6E40C9),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Dark Mode',
+                      style: TextStyle(
+                          color: titleColor,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(isDark ? 'On — tap to switch to light' : 'Off — tap to switch to dark',
+                      style: TextStyle(color: subtitleColor, fontSize: 13)),
+                ],
+              ),
+            ),
+            // Animated toggle pill
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              width: 48,
+              height: 28,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF6E40C9) : const Color(0xFFE5E5EA),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                alignment: isDark ? Alignment.centerRight : Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(3),
+                  child: Container(
+                    width: 22, height: 22,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1837,6 +1956,7 @@ class _SettingsRowState extends State<_SettingsRow> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: (_) => setState(() => _pressed = true),
@@ -1850,7 +1970,9 @@ class _SettingsRowState extends State<_SettingsRow> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFF2F2F7),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : const Color(0xFFF2F2F7),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -1871,8 +1993,8 @@ class _SettingsRowState extends State<_SettingsRow> {
                   children: <Widget>[
                     Text(
                       widget.title,
-                      style: const TextStyle(
-                        color: Color(0xFF1C1C1E),
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFFF0F4FF) : const Color(0xFF1C1C1E),
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1880,17 +2002,21 @@ class _SettingsRowState extends State<_SettingsRow> {
                     const SizedBox(height: 2),
                     Text(
                       widget.subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF8E8E93),
+                      style: TextStyle(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.45)
+                            : const Color(0xFF8E8E93),
                         fontSize: 13,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: Color(0xFFC7C7CC),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.20)
+                    : const Color(0xFFC7C7CC),
                 size: 22,
               ),
             ],
