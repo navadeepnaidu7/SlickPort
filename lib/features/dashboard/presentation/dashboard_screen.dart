@@ -38,6 +38,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   late final Animation<Offset> _entrySlide;
   late final TabController _tabCtrl;
   late final ValueNotifier<double> _docPage;
+  late final AnimationController _easterEggCtrl;
+  final ValueNotifier<double> _easterEggOffset = ValueNotifier(0.0);
+  double _dragOffset = 0.0;
+  bool _isDragging = false;
 
   @override
   void initState() {
@@ -62,6 +66,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     _tabCtrl.addListener(() {
       if (!_tabCtrl.indexIsChanging) setState(() {});
     });
+    _easterEggCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _easterEggCtrl.addListener(() {
+      if (!_isDragging) {
+        _easterEggOffset.value = _easterEggCtrl.value * 246.0;
+        _dragOffset = _easterEggOffset.value;
+      }
+    });
     _entryCtrl.forward();
   }
 
@@ -70,7 +84,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     _entryCtrl.dispose();
     _tabCtrl.dispose();
     _docPage.dispose();
+    _easterEggCtrl.dispose();
+    _easterEggOffset.dispose();
     super.dispose();
+  }
+
+  void _handleDragUpdate(DragUpdateDetails details) {
+    _isDragging = true;
+    final double delta = details.primaryDelta ?? 0;
+    // Scale delta down to 0.65 to make dragging stiffer and more controlled
+    _dragOffset += delta * 0.65;
+    
+    final double panelHeight = 246.0;
+    double effective = _dragOffset;
+    if (_dragOffset > panelHeight) {
+      final double overshoot = _dragOffset - panelHeight;
+      // Stiffer rubber banding factor of 0.12 past the panel height
+      effective = panelHeight + (overshoot * 0.12);
+    } else if (_dragOffset < 0) {
+      effective = 0;
+    }
+    _easterEggOffset.value = effective;
+  }
+
+  void _handleDragEnd(DragEndDetails details) {
+    _isDragging = false;
+    final double panelHeight = 246.0;
+    final double currentOffset = _easterEggOffset.value;
+    
+    if (currentOffset > 110.0) {
+      final double startProgress = (currentOffset / panelHeight).clamp(0.0, 1.0);
+      _easterEggCtrl.value = startProgress;
+      _easterEggCtrl.animateTo(1.0, curve: Curves.easeOutBack);
+    } else {
+      final double startProgress = (currentOffset / panelHeight).clamp(0.0, 1.0);
+      _easterEggCtrl.value = startProgress;
+      _easterEggCtrl.animateTo(0.0, curve: Curves.easeOut);
+    }
   }
 
   void _openPassportEntry(bool isEPassport) {
@@ -271,57 +321,130 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         extendBody: true,
         body: Stack(
           children: <Widget>[
-            RepaintBoundary(
-              child: _WalletBackdrop(
-                tabIndex: _tabCtrl.index,
-                items: items,
-                pageNotifier: _docPage,
-              ),
-            ),
-            SafeArea(
-              child: FadeTransition(
-                opacity: _entryFade,
-                child: SlideTransition(
-                  position: _entrySlide,
-                  child: Column(
-                    children: [
-                      // ── Header ──────────────────────────────────────────
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                        child: _DashboardHeader(
-                          name: currentName,
-                          tickets: mockTickets,
-                          onAvatarTap: _showSettingsSheet,
-                          onTripTap: () => _tabCtrl.animateTo(1),
+            ValueListenableBuilder<double>(
+              valueListenable: _easterEggOffset,
+              builder: (context, offsetY, drawerWidget) {
+                final double panelHeight = 246.0;
+                // Parallax background: offset starts at -30px when closed, reaches 0px when fully open.
+                final double drawerTop = -30.0 + (30.0 * (offsetY / panelHeight).clamp(0.0, 1.0));
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // 1. Easter Egg Drawer (positioned in background with parallax)
+                    Positioned(
+                      top: drawerTop,
+                      left: 0,
+                      right: 0,
+                      height: panelHeight + 150.0,
+                      child: drawerWidget!,
+                    ),
+                    // 2. Main Sliding Sheet (translated down, rounded at top)
+                    Positioned.fill(
+                      child: Transform.translate(
+                        offset: Offset(0, offsetY),
+                        child: Container(
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            borderRadius: offsetY > 0
+                                ? const BorderRadius.vertical(top: Radius.circular(32))
+                                : BorderRadius.zero,
+                            boxShadow: offsetY > 0
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.15),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, -6),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Stack(
+                            children: [
+                              // Background mesh moving with the sheet
+                              RepaintBoundary(
+                                child: _WalletBackdrop(
+                                  tabIndex: _tabCtrl.index,
+                                  items: items,
+                                  pageNotifier: _docPage,
+                                ),
+                              ),
+                              // Content Column
+                              SafeArea(
+                                child: FadeTransition(
+                                  opacity: _entryFade,
+                                  child: SlideTransition(
+                                    position: _entrySlide,
+                                    child: Column(
+                                      children: [
+                                        // Header with Drag Interceptor & iOS Pull Indicator
+                                        Stack(
+                                          alignment: Alignment.topCenter,
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onVerticalDragUpdate: _handleDragUpdate,
+                                              onVerticalDragEnd: _handleDragEnd,
+                                              child: Padding(
+                                                padding: const EdgeInsets.fromLTRB(20, 68, 20, 0),
+                                                child: _DashboardHeader(
+                                                  name: currentName,
+                                                  tickets: mockTickets,
+                                                  onAvatarTap: _showSettingsSheet,
+                                                  onTripTap: () => _tabCtrl.animateTo(1),
+                                                ),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 12,
+                                              child: _IosPullIndicator(offset: offsetY),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        // Tab content
+                                        Expanded(
+                                          child: TabBarView(
+                                            controller: _tabCtrl,
+                                            clipBehavior: Clip.none,
+                                            physics: const NeverScrollableScrollPhysics(),
+                                            children: [
+                                              _DocsTab(
+                                                passports: passports,
+                                                idDocs: idDocs,
+                                                onDeletePassport: _showDeleteDialog,
+                                                onDeleteId: _showDeleteIdDialog,
+                                                pageNotifier: _docPage,
+                                              ),
+                                              const TicketsTab(),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-
-                      const SizedBox(height: 12),
-
-                      // ── Tab content ──────────────────────────────────────
-                      Expanded(
-                        child: TabBarView(
-                          controller: _tabCtrl,
-                          clipBehavior: Clip.none,
-                          physics: const NeverScrollableScrollPhysics(),
-                          children: [
-                            // Tab 0: Docs (Passports + IDs combined)
-                            _DocsTab(
-                              passports: passports,
-                              idDocs: idDocs,
-                              onDeletePassport: _showDeleteDialog,
-                              onDeleteId: _showDeleteIdDialog,
-                              pageNotifier: _docPage,
-                            ),
-
-                            // Tab 1: Tickets
-                            const TicketsTab(),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
+                  ],
+                );
+              },
+              child: _EasterEggDrawer(
+                controller: _easterEggCtrl,
+                dragOffsetNotifier: _easterEggOffset,
+                onDragUpdate: _handleDragUpdate,
+                onDragEnd: _handleDragEnd,
+                passports: passports,
+                idDocs: idDocs,
+                tickets: mockTickets,
+                onAddPassport: _showPassportTypeSheet,
+                onAddId: _openIdEntry,
               ),
             ),
 
@@ -1349,8 +1472,10 @@ class _WalletBackdropState extends State<_WalletBackdrop>
           child: AnimatedBuilder(
             animation: Listenable.merge([_ctrl, _colorCtrl, widget.pageNotifier]),
             builder: (context, _) {
+              final bool isDark = Theme.of(context).brightness == Brightness.dark;
               return CustomPaint(
                 painter: _AppleCardGradientPainter(
+                  isDark: isDark,
                   progress: _ctrl.value,
                   colorT: _colorCtrl.value,
                   items: widget.items,
@@ -1367,11 +1492,13 @@ class _WalletBackdropState extends State<_WalletBackdrop>
 
 class _AppleCardGradientPainter extends CustomPainter {
   _AppleCardGradientPainter({
+    required this.isDark,
     required this.progress,
     required this.colorT,
     required this.items,
     required this.page,
   });
+  final bool isDark;
   final double progress;
   final double colorT; // 0 = Docs (cool), 1 = Tickets (warm)
   final List<Object> items;
@@ -1402,8 +1529,8 @@ class _AppleCardGradientPainter extends CustomPainter {
     final double h = size.height;
 
     // Base background
-    final Color baseDocBg = const Color(0xFFF2F2F7); // Apple standard light gray
-    final Color baseTicketBg = const Color(0xFFFFF8E8);
+    final Color baseDocBg = isDark ? const Color(0xFF080E1A) : const Color(0xFFF2F2F7); // Apple standard light/dark gray
+    final Color baseTicketBg = isDark ? const Color(0xFF140D0B) : const Color(0xFFFFF8E8);
     final Paint base = Paint()
       ..color = Color.lerp(baseDocBg, baseTicketBg, colorT)!;
     canvas.drawRect(Offset.zero & size, base);
@@ -1425,7 +1552,7 @@ class _AppleCardGradientPainter extends CustomPainter {
     // Orb 1 - Primary
     final double t1 = progress * 2 * math.pi;
     drawOrb(
-      activeColor.withValues(alpha: 0.24),
+      activeColor.withValues(alpha: isDark ? 0.16 : 0.24),
       w * 0.5 + math.cos(t1) * w * 0.12,
       h * 0.45 + math.sin(t1) * h * 0.06,
       w * 0.6,
@@ -1435,7 +1562,7 @@ class _AppleCardGradientPainter extends CustomPainter {
     final double t2 = progress * 2 * math.pi + (math.pi * 0.66);
     final Color c2 = hslActive.withHue((hslActive.hue + 40) % 360).toColor();
     drawOrb(
-      c2.withValues(alpha: 0.18),
+      c2.withValues(alpha: isDark ? 0.12 : 0.18),
       w * 0.45 + math.cos(t2) * w * 0.15,
       h * 0.52 + math.sin(t2) * h * 0.08,
       w * 0.65,
@@ -1445,7 +1572,7 @@ class _AppleCardGradientPainter extends CustomPainter {
     final double t3 = progress * 2 * math.pi + (math.pi * 1.33);
     final Color c3 = hslActive.withHue((hslActive.hue - 40 + 360) % 360).toColor();
     drawOrb(
-      c3.withValues(alpha: 0.24),
+      c3.withValues(alpha: isDark ? 0.16 : 0.24),
       w * 0.55 + math.cos(t3) * w * 0.1,
       h * 0.4 + math.sin(t3) * h * 0.05,
       w * 0.6,
@@ -1454,7 +1581,11 @@ class _AppleCardGradientPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _AppleCardGradientPainter old) =>
-      old.progress != progress || old.colorT != colorT || old.page != page || old.items.length != items.length;
+      old.progress != progress ||
+      old.colorT != colorT ||
+      old.page != page ||
+      old.items.length != items.length ||
+      old.isDark != isDark;
 }
 
 // ─── HEADER WIDGETS ───────────────────────────────────────────────────────────
@@ -2576,3 +2707,240 @@ class _SettingsRowState extends State<_SettingsRow> {
     );
   }
 }
+
+// ─── EASTER EGG DRAWER & TAPE CARDS ──────────────────────────────────────────
+
+class _EasterEggDrawer extends StatelessWidget {
+  const _EasterEggDrawer({
+    required this.controller,
+    required this.dragOffsetNotifier,
+    required this.onDragUpdate,
+    required this.onDragEnd,
+    required this.passports,
+    required this.idDocs,
+    required this.tickets,
+    required this.onAddPassport,
+    required this.onAddId,
+  });
+
+  final AnimationController controller;
+  final ValueNotifier<double> dragOffsetNotifier;
+  final GestureDragUpdateCallback onDragUpdate;
+  final GestureDragEndCallback onDragEnd;
+  final List<PassportProfile> passports;
+  final List<IdDocument> idDocs;
+  final List<MockTicket> tickets;
+  final VoidCallback onAddPassport;
+  final void Function(IdDocumentType) onAddId;
+
+  @override
+  Widget build(BuildContext context) {
+    final double panelHeight = 246.0;
+    final String currentName = passports.isNotEmpty ? passports.first.name : '';
+    final firstName = currentName.isEmpty ? 'Traveller' : currentName.split(' ').first;
+
+    final int hour = DateTime.now().hour;
+    final bool isNight = hour < 6 || hour > 18;
+    final IconData weatherIcon = isNight ? Icons.nights_stay_rounded : Icons.wb_sunny_rounded;
+    final Color weatherIconColor = isNight ? const Color(0xFF8E9AA6) : const Color(0xFFFFD700);
+    final String weatherCondition = isNight ? 'Clear Night • 18°C' : 'Bright Sunny Day • 24°C';
+    final String weatherPhrase = isNight
+        ? "It's a calm, clear night. A great time to review your travel plans."
+        : "It's a bright, sunny day. Perfect day to step out and travel!";
+
+    return GestureDetector(
+      onVerticalDragUpdate: onDragUpdate,
+      onVerticalDragEnd: onDragEnd,
+      child: Container(
+        width: double.infinity,
+        height: panelHeight + 150.0,
+        clipBehavior: Clip.antiAlias,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF007AFF), Color(0xFF0056B3)], // Vibrant Apple Blue
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          child: Container(
+            height: panelHeight,
+            padding: const EdgeInsets.fromLTRB(20, 48, 20, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title Greeting
+                Text(
+                  'Hey, $firstName',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Natural language conversational stats
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      const TextSpan(text: 'You have '),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 3),
+                          child: Icon(Icons.wallet_rounded, color: Colors.white.withValues(alpha: 0.9), size: 16),
+                        ),
+                      ),
+                      TextSpan(
+                        text: '${passports.length + idDocs.length} items',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const TextSpan(text: ' in your wallet,\n'),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 3),
+                          child: Icon(Icons.flight_takeoff_rounded, color: Colors.white.withValues(alpha: 0.9), size: 16),
+                        ),
+                      ),
+                      TextSpan(
+                        text: '${tickets.where((t) => t.status == TicketStatus.active).length} active trips',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const TextSpan(text: ', and '),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 3),
+                          child: Icon(Icons.offline_pin_rounded, color: Colors.white.withValues(alpha: 0.9), size: 16),
+                        ),
+                      ),
+                      const TextSpan(
+                        text: 'all data offline.',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 15,
+                    height: 1.45,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                const Spacer(),
+
+                // Weather Section (replaces the card miniatures)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.11),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // Glow Sun/Moon Icon
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: weatherIconColor.withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          weatherIcon,
+                          color: weatherIconColor,
+                          size: 26,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              weatherCondition,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              weatherPhrase,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.8),
+                                fontSize: 13,
+                                height: 1.3,
+                                letterSpacing: -0.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+
+class _IosPullIndicator extends StatelessWidget {
+  const _IosPullIndicator({required this.offset});
+  final double offset;
+
+  @override
+  Widget build(BuildContext context) {
+    if (offset <= 0.0) return const SizedBox.shrink();
+
+    // Fade in from 0.0 to 1.0 based on pull from 0 to 80px
+    final double progress = (offset / 80.0).clamp(0.0, 1.0);
+    // Smoothly rotate the arrow as you pull: 
+    // at 110px, it reaches exactly 180 degrees (3.14159 radians), pointing straight up.
+    final double rotation = (offset / 110.0).clamp(0.0, 1.0) * 3.14159;
+
+    return Opacity(
+      opacity: progress,
+      child: Transform.scale(
+        scale: 0.85 + (progress * 0.15),
+        child: Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withValues(alpha: 0.12)
+                : Colors.black.withValues(alpha: 0.06),
+            shape: BoxShape.circle,
+          ),
+          child: Transform.rotate(
+            angle: rotation,
+            child: Icon(
+              Icons.arrow_downward_rounded,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withValues(alpha: 0.7)
+                  : Colors.black.withValues(alpha: 0.65),
+              size: 16,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
