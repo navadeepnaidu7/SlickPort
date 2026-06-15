@@ -21,25 +21,7 @@ class IdListController extends StateNotifier<List<IdDocument>> {
     if (saved != null && saved.isNotEmpty) {
       state = saved.map(IdDocument.fromJson).toList();
     } else {
-      state = [
-        IdDocument(
-          id: 'demo_pan_001',
-          type: IdDocumentType.pan,
-          holderName: 'Navadeep Naidu Gudi',
-          documentNumber: 'ABCPN1234G',
-          dateOfBirth: '2005-08-10',
-          fatherName: 'Venkata Naidu Gudi',
-        ),
-        IdDocument(
-          id: 'demo_aadhaar_001',
-          type: IdDocumentType.aadhaar,
-          holderName: 'Navadeep Naidu Gudi',
-          documentNumber: '1234 5678 9012',
-          dateOfBirth: '2005-08-10',
-          gender: 'Male',
-          address: 'Parigi, Vikarabad, Telangana - 501401',
-        ),
-      ];
+      state = [];
     }
   }
 

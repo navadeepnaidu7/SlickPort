@@ -31,7 +31,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
-    expect(find.text('MAYA JOHNSON'), findsWidgets);
+    expect(find.text('No Documents Yet'), findsOneWidget);
     expect(find.text('Docs'), findsOneWidget);
     expect(find.text('Tickets'), findsOneWidget);
   });

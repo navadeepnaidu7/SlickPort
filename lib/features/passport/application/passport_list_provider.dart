@@ -21,25 +21,7 @@ class PassportListController extends StateNotifier<List<PassportProfile>> {
     if (savedData != null && savedData.isNotEmpty) {
       state = savedData.map((str) => PassportProfile.fromJson(str)).toList();
     } else {
-      // Load default demo profile if completely empty
-      state = [
-        PassportProfile(
-          id: 'demo_maya_001',
-          name: 'Maya Johnson',
-          passportNumber: 'E12345678',
-          nationality: 'American',
-          dateOfBirth: '1991-04-12',
-          expiryDate: '2031-08-15',
-          imagePath: '',
-          mrzRaw:
-              'P<USAMAYA<<JOHNSON<<<<<<<<<<<<<<<<<<<<<<<<\nE12345678USA9104129F3108157<<<<<<<<<<<<<<04',
-          isEPassport: true,
-          gender: 'F',
-          placeOfBirth: 'New York, USA',
-          issueDate: '2021-08-15',
-          issuingAuthority: 'US Department of State',
-        )
-      ];
+      state = [];
     }
   }
 
