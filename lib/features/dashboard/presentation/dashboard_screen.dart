@@ -6,6 +6,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/theme_provider.dart';
 import '../../../shared/widgets/bounce_tap.dart';
@@ -348,7 +349,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           decoration: BoxDecoration(
                             color: Theme.of(context).scaffoldBackgroundColor,
                             borderRadius: offsetY > 0
-                                ? const BorderRadius.vertical(top: Radius.circular(32))
+                                ? const BorderRadius.vertical(top: Radius.circular(44))
                                 : BorderRadius.zero,
                             boxShadow: offsetY > 0
                                 ? [
@@ -378,30 +379,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                     position: _entrySlide,
                                     child: Column(
                                       children: [
-                                        // Header with Drag Interceptor & iOS Pull Indicator
-                                        Stack(
-                                          alignment: Alignment.topCenter,
-                                          clipBehavior: Clip.none,
-                                          children: [
-                                            GestureDetector(
-                                              behavior: HitTestBehavior.opaque,
-                                              onVerticalDragUpdate: _handleDragUpdate,
-                                              onVerticalDragEnd: _handleDragEnd,
-                                              child: Padding(
-                                                padding: const EdgeInsets.fromLTRB(20, 68, 20, 0),
-                                                child: _DashboardHeader(
-                                                  name: currentName,
-                                                  tickets: mockTickets,
-                                                  onAvatarTap: _showSettingsSheet,
-                                                  onTripTap: () => _tabCtrl.animateTo(1),
-                                                ),
-                                              ),
+                                        // Header with Drag Interceptor
+                                        GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onVerticalDragUpdate: _handleDragUpdate,
+                                          onVerticalDragEnd: _handleDragEnd,
+                                          child: Padding(
+                                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                                            child: _DashboardHeader(
+                                              name: currentName,
+                                              tickets: mockTickets,
+                                              onAvatarTap: _showSettingsSheet,
+                                              onTripTap: () => _tabCtrl.animateTo(1),
                                             ),
-                                            Positioned(
-                                              top: 12,
-                                              child: _IosPullIndicator(offset: offsetY),
-                                            ),
-                                          ],
+                                          ),
                                         ),
                                         const SizedBox(height: 12),
                                         // Tab content
@@ -2757,9 +2748,9 @@ class _EasterEggDrawer extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF007AFF), Color(0xFF0056B3)], // Vibrant Apple Blue
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            colors: [Color(0xFF081A36), Color(0xFF030811)], // Deep space midnight navy gradient
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
         ),
         child: SingleChildScrollView(
@@ -2767,129 +2758,174 @@ class _EasterEggDrawer extends StatelessWidget {
           child: Container(
             height: panelHeight,
             padding: const EdgeInsets.fromLTRB(20, 48, 20, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title Greeting
-                Text(
-                  'Hey, $firstName',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.6,
-                  ),
-                ),
-                const SizedBox(height: 8),
+            child: ValueListenableBuilder<double>(
+              valueListenable: dragOffsetNotifier,
+              builder: (context, offsetY, _) {
+                // Calculate progress t from 0.0 to 1.0 based on snap threshold (246px)
+                final double t = (offsetY / panelHeight).clamp(0.0, 1.0);
 
-                // Natural language conversational stats
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      const TextSpan(text: 'You have '),
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 3),
-                          child: Icon(Icons.wallet_rounded, color: Colors.white.withValues(alpha: 0.9), size: 16),
-                        ),
-                      ),
-                      TextSpan(
-                        text: '${passports.length + idDocs.length} items',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const TextSpan(text: ' in your wallet,\n'),
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 3),
-                          child: Icon(Icons.flight_takeoff_rounded, color: Colors.white.withValues(alpha: 0.9), size: 16),
-                        ),
-                      ),
-                      TextSpan(
-                        text: '${tickets.where((t) => t.status == TicketStatus.active).length} active trips',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const TextSpan(text: ', and '),
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 3),
-                          child: Icon(Icons.offline_pin_rounded, color: Colors.white.withValues(alpha: 0.9), size: 16),
-                        ),
-                      ),
-                      const TextSpan(
-                        text: 'all data offline.',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 15,
-                    height: 1.45,
-                    letterSpacing: -0.1,
-                  ),
-                ),
-                const Spacer(),
+                // 1. Greeting progress: reveals from t=0.1 to t=0.6
+                final double tGreeting = ((t - 0.1) / 0.5).clamp(0.0, 1.0);
+                final double opacityGreeting = tGreeting;
+                final double yGreeting = (1.0 - tGreeting) * 12.0;
 
-                // Weather Section (replaces the card miniatures)
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.11),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      width: 1.0,
+                // 2. Stats progress: reveals from t=0.25 to t=0.75
+                final double tStats = ((t - 0.25) / 0.5).clamp(0.0, 1.0);
+                final double opacityStats = tStats;
+                final double yStats = (1.0 - tStats) * 12.0;
+
+                // 3. Weather progress: reveals from t=0.4 to t=0.9
+                final double tWeather = ((t - 0.4) / 0.5).clamp(0.0, 1.0);
+                final double opacityWeather = tWeather;
+                final double yWeather = (1.0 - tWeather) * 16.0;
+                final double scaleWeather = 0.95 + (0.05 * tWeather);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title Greeting
+                    Opacity(
+                      opacity: opacityGreeting,
+                      child: Transform.translate(
+                        offset: Offset(0, yGreeting),
+                        child: Text(
+                          'Hey, $firstName',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      // Glow Sun/Moon Icon
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: weatherIconColor.withValues(alpha: 0.18),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          weatherIcon,
-                          color: weatherIconColor,
-                          size: 26,
+                    const SizedBox(height: 8),
+
+                    // Natural language conversational stats
+                    Opacity(
+                      opacity: opacityStats,
+                      child: Transform.translate(
+                        offset: Offset(0, yStats),
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              const TextSpan(text: 'You have '),
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 3),
+                                  child: Icon(Icons.wallet_rounded, color: Colors.white.withValues(alpha: 0.7), size: 16),
+                                ),
+                              ),
+                              TextSpan(
+                                text: '${passports.length + idDocs.length} items',
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                              const TextSpan(text: ' in your wallet,\n'),
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 3),
+                                  child: Icon(Icons.flight_takeoff_rounded, color: Colors.white.withValues(alpha: 0.7), size: 16),
+                                ),
+                              ),
+                              TextSpan(
+                                text: '${tickets.where((t) => t.status == TicketStatus.active).length} active trips',
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                              const TextSpan(text: ', and '),
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 3),
+                                  child: Icon(Icons.offline_pin_rounded, color: Colors.white.withValues(alpha: 0.7), size: 16),
+                                ),
+                              ),
+                              const TextSpan(
+                                text: 'all data offline.',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF8DA2C4),
+                            fontSize: 15,
+                            height: 1.45,
+                            letterSpacing: -0.1,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              weatherCondition,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: -0.3,
+                    ),
+                    const Spacer(),
+
+                    // Weather Section (replaces the card miniatures)
+                    Opacity(
+                      opacity: opacityWeather,
+                      child: Transform.translate(
+                        offset: Offset(0, yWeather),
+                        child: Transform.scale(
+                          scale: scaleWeather,
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                width: 1.0,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              weatherPhrase,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.8),
-                                fontSize: 13,
-                                height: 1.3,
-                                letterSpacing: -0.1,
-                              ),
+                            child: Row(
+                              children: [
+                                // Glow Sun/Moon Icon
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: weatherIconColor.withValues(alpha: 0.12),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    weatherIcon,
+                                    color: weatherIconColor,
+                                    size: 26,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        weatherCondition,
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: -0.3,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        weatherPhrase,
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF8DA2C4),
+                                          fontSize: 13,
+                                          height: 1.3,
+                                          letterSpacing: -0.1,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -2900,47 +2936,5 @@ class _EasterEggDrawer extends StatelessWidget {
 
 
 
-class _IosPullIndicator extends StatelessWidget {
-  const _IosPullIndicator({required this.offset});
-  final double offset;
 
-  @override
-  Widget build(BuildContext context) {
-    if (offset <= 0.0) return const SizedBox.shrink();
-
-    // Fade in from 0.0 to 1.0 based on pull from 0 to 80px
-    final double progress = (offset / 80.0).clamp(0.0, 1.0);
-    // Smoothly rotate the arrow as you pull: 
-    // at 110px, it reaches exactly 180 degrees (3.14159 radians), pointing straight up.
-    final double rotation = (offset / 110.0).clamp(0.0, 1.0) * 3.14159;
-
-    return Opacity(
-      opacity: progress,
-      child: Transform.scale(
-        scale: 0.85 + (progress * 0.15),
-        child: Container(
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withValues(alpha: 0.12)
-                : Colors.black.withValues(alpha: 0.06),
-            shape: BoxShape.circle,
-          ),
-          child: Transform.rotate(
-            angle: rotation,
-            child: Icon(
-              Icons.arrow_downward_rounded,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white.withValues(alpha: 0.7)
-                  : Colors.black.withValues(alpha: 0.65),
-              size: 16,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
