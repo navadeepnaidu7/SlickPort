@@ -5,9 +5,9 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/haptics/haptic_service.dart';
 import '../../../core/motion/entry_reveal.dart';
 import '../../../core/sound/sound_service.dart';
 import '../../../shared/widgets/bounce_tap.dart';
@@ -135,7 +135,7 @@ class _IdEntryScreenState extends ConsumerState<IdEntryScreen> {
       return;
     }
 
-    HapticFeedback.heavyImpact();
+    HapticService.success();
     SoundService.success();
     ref.read(idListProvider.notifier).addDocument(doc);
 

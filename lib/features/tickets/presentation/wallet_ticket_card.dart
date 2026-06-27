@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../../../core/haptics/haptic_service.dart';
 
 // ── Data model ────────────────────────────────────────────────────────────────
 
@@ -237,7 +237,7 @@ class _WalletTicketCardState extends State<WalletTicketCard>
   void _onTapCancel() => _pressCtrl.reverse();
 
   void _openDetail() {
-    HapticFeedback.mediumImpact();
+    HapticService.confirm();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

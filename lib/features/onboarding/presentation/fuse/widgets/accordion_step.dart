@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../domain/onboarding_content.dart';
+import '../../../../../core/haptics/haptic_service.dart';
 import '../../../../../core/motion/smooth_curves.dart';
 
 class AccordionStep extends StatelessWidget {
@@ -221,7 +222,12 @@ class OnboardingStepCta extends StatelessWidget {
             key: ValueKey<String>('got-it-$stepIndex'),
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: onPressed,
+              onPressed: onPressed == null
+                  ? null
+                  : () {
+                      HapticService.tap();
+                      onPressed!();
+                    },
               icon: const Icon(Icons.arrow_forward_rounded, size: 18),
               label: const Text(
                 'Got it',

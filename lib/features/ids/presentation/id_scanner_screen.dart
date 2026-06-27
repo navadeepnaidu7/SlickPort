@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../../../core/haptics/haptic_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../application/id_scanner_service.dart';
@@ -116,7 +116,7 @@ class _IdScannerScreenState extends State<IdScannerScreen>
 
   Future<void> _capture() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
-    HapticFeedback.heavyImpact();
+    HapticService.impact();
     setState(() => _state = _ScanState.processing);
     try {
       final xFile = await _controller!.takePicture();

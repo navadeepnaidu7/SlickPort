@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../../../core/haptics/haptic_service.dart';
+import '../../../core/sound/sound_service.dart';
 import '../../../shared/widgets/apple_sheet.dart';
 import '../application/nfc_service.dart';
 
@@ -57,7 +58,8 @@ class _NfcScannerSheetState extends State<NfcScannerSheet> with SingleTickerProv
           _isSuccess = true;
           _statusMessage = "Verification Successful!";
         });
-        HapticFeedback.heavyImpact();
+        HapticService.success();
+        SoundService.success();
         await Future.delayed(const Duration(milliseconds: 1500));
         if (mounted) {
           Navigator.of(context).pop(result);
@@ -69,7 +71,7 @@ class _NfcScannerSheetState extends State<NfcScannerSheet> with SingleTickerProv
           _isError = true;
           _statusMessage = "Failed to read NFC chip. Please try again.\n\nError: $e";
         });
-        HapticFeedback.vibrate();
+        HapticService.error();
       }
     }
   }

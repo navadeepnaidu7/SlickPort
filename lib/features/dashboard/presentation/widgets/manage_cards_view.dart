@@ -1,7 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/haptics/haptic_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../ids/domain/id_document.dart';
@@ -53,7 +54,7 @@ class ManageCardsView extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 24),
         itemCount: items.length,
         onReorder: (oldIndex, newIndex) {
-          HapticFeedback.lightImpact();
+          HapticService.reorder();
           if (oldIndex < newIndex) {
             newIndex -= 1;
           }

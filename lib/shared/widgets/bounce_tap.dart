@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+
+import '../../core/haptics/haptic_service.dart';
 
 class BounceTap extends StatefulWidget {
   const BounceTap({
@@ -29,6 +30,9 @@ class _BounceTapState extends State<BounceTap> {
   void _onTapDown(TapDownDetails _) {
     if (widget.onTap == null && widget.onLongPress == null) return;
     setState(() => _isPressed = true);
+    if (widget.hapticFeedback && widget.onTap != null) {
+      HapticService.tap();
+    }
   }
 
   void _onTapUp(TapUpDetails _) {
@@ -48,18 +52,11 @@ class _BounceTapState extends State<BounceTap> {
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
-      onTap: widget.onTap != null
-          ? () {
-              if (widget.hapticFeedback) {
-                HapticFeedback.lightImpact();
-              }
-              widget.onTap!();
-            }
-          : null,
+      onTap: widget.onTap,
       onLongPress: widget.onLongPress != null
           ? () {
               if (widget.hapticFeedback) {
-                HapticFeedback.mediumImpact();
+                HapticService.longPress();
               }
               widget.onLongPress!();
             }

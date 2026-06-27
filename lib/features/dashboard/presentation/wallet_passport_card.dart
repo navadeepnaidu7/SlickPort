@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/haptics/haptic_service.dart';
 import '../../../core/sound/sound_service.dart';
 
 import '../../passport/domain/passport_profile.dart';
@@ -85,7 +85,7 @@ class _WalletPassportCardState extends State<WalletPassportCard>
 
   void _handleTap() {
     if (_dragging) return;
-    HapticFeedback.mediumImpact();
+    HapticService.flip();
     SoundService.flip();
     if (_showBack) {
       _flipCtrl.reverse();
@@ -126,12 +126,10 @@ class _WalletPassportCardState extends State<WalletPassportCard>
       height: cardHeight,
       width: double.infinity,
       child: GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          _handleTap();
-        },
+        onTap: _handleTap,
         onLongPress: () {
-          HapticFeedback.heavyImpact();
+          HapticService.longPress();
+          SoundService.longPress();
           widget.onLongPress?.call();
         },
         onPanStart: _onPanStart,

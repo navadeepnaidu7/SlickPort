@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/haptics/haptic_service.dart';
+
 import '../../ids/application/id_list_provider.dart';
 import '../../ids/domain/id_document.dart';
 import '../../ids/presentation/add_id_sheet.dart';
@@ -207,7 +209,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
 
   void _showAddSheet() {
-    HapticFeedback.mediumImpact();
+    HapticService.confirm();
     if (_tabCtrl.index == 0) {
       // Docs tab — choose Passport or ID
       showModalBottomSheet<void>(
@@ -245,7 +247,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   void _showPassportTypeSheet() {
-    HapticFeedback.mediumImpact();
+    HapticService.confirm();
     showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
@@ -265,7 +267,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   void _showSettingsSheet() {
-    HapticFeedback.selectionClick();
+    HapticService.confirm();
     showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
@@ -277,7 +279,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
 
   void _showDeleteDialog(PassportProfile profile) {
-    HapticFeedback.heavyImpact();
+    HapticService.destructive();
     showCupertinoModalPopup<void>(
       context: context,
       builder: (BuildContext ctx) => CupertinoActionSheet(
@@ -306,7 +308,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   void _showDeleteIdDialog(IdDocument doc) {
-    HapticFeedback.heavyImpact();
+    HapticService.destructive();
     final String label = doc.holderName.isEmpty
         ? 'this card'
         : "${doc.holderName}'s";

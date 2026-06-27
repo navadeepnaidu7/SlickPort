@@ -1,8 +1,7 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
+import '../../../core/haptics/haptic_service.dart';
 import '../../../shared/widgets/bounce_tap.dart';
 import '../../../shared/widgets/roll_page_stack.dart';
 import 'wallet_ticket_card.dart';
@@ -59,7 +58,7 @@ class _TicketsTabState extends State<TicketsTab> {
                 label: 'Active',
                 selected: _filterIndex == 0,
                 onTap: () {
-                  HapticFeedback.selectionClick();
+                  HapticService.select();
                   setState(() {
                     _filterIndex = 0;
                     _page = 0;
@@ -72,7 +71,7 @@ class _TicketsTabState extends State<TicketsTab> {
                 label: 'Expired',
                 selected: _filterIndex == 1,
                 onTap: () {
-                  HapticFeedback.selectionClick();
+                  HapticService.select();
                   setState(() {
                     _filterIndex = 1;
                     _page = 0;

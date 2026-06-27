@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../core/haptics/haptic_service.dart';
 import '../application/mrz_scanner_service.dart';
 import '../domain/mrz_result.dart';
 
@@ -113,7 +113,7 @@ class _MrzScannerScreenState extends State<MrzScannerScreen>
 
   Future<void> _capture() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
-    HapticFeedback.heavyImpact();
+    HapticService.impact();
     setState(() => _state = _ScanState.processing);
     try {
       final xFile = await _controller!.takePicture();

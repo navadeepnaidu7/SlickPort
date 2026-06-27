@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/haptics/haptic_service.dart';
 
 import '../../application/nav_labels_provider.dart';
 import 'custom_id_card_icon.dart';
@@ -155,7 +156,7 @@ class TabLabel extends ConsumerWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          HapticFeedback.selectionClick();
+          HapticService.select();
           controller.animateTo(index);
         },
         child: Center(

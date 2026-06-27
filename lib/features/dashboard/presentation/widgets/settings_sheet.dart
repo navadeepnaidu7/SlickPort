@@ -1,9 +1,10 @@
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/haptics/haptic_service.dart';
+import '../../../../core/haptics/haptics_provider.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../shared/widgets/apple_sheet.dart';
 import '../../application/nav_labels_provider.dart';
@@ -88,10 +89,12 @@ class SettingsSheet extends ConsumerWidget {
                 DarkModeRow(
                   isDark: isDark,
                   onToggle: () {
-                    HapticFeedback.selectionClick();
+                    HapticService.select();
                     ref.read(themeModeProvider.notifier).toggle();
                   },
                 ),
+                const SizedBox(height: 12),
+                const HapticsToggleRow(),
                 const SizedBox(height: 12),
                 // ── Navigation labels toggle ─────────────────────────
                 const NavLabelsToggleRow(),
@@ -223,6 +226,113 @@ class DarkModeRow extends StatelessWidget {
   }
 }
 
+class HapticsToggleRow extends ConsumerWidget {
+  const HapticsToggleRow({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool enabled = ref.watch(hapticsEnabledProvider);
+    final bool isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+
+    final Color rowBg = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : const Color(0xFFF2F2F7);
+    final Color titleColor = isDark
+        ? const Color(0xFFF0F4FF)
+        : const Color(0xFF1C1C1E);
+    final Color subtitleColor = isDark
+        ? Colors.white.withValues(alpha: 0.45)
+        : const Color(0xFF8E8E93);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (enabled) {
+          HapticService.select();
+        }
+        ref.read(hapticsEnabledProvider.notifier).toggle();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: rowBg,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF9500).withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: const Icon(
+                Icons.vibration_rounded,
+                color: Color(0xFFFF9500),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Haptic Feedback',
+                    style: TextStyle(
+                      color: titleColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    enabled
+                        ? 'On — tap to turn off vibrations'
+                        : 'Off — tap to turn on vibrations',
+                    style: TextStyle(color: subtitleColor, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              width: 48,
+              height: 28,
+              decoration: BoxDecoration(
+                color: enabled
+                    ? const Color(0xFFFF9500)
+                    : const Color(0xFFE5E5EA),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                alignment: enabled
+                    ? Alignment.centerRight
+                    : Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(3),
+                  child: Container(
+                    width: 22,
+                    height: 22,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class NavLabelsToggleRow extends ConsumerWidget {
   const NavLabelsToggleRow({super.key});
 
@@ -244,7 +354,7 @@ class NavLabelsToggleRow extends ConsumerWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
-        HapticFeedback.selectionClick();
+        HapticService.select();
         ref.read(showNavLabelsProvider.notifier).toggle();
       },
       child: Container(
@@ -452,7 +562,7 @@ class _SettingsRowState extends State<SettingsRow> {
       onTapCancel: () => setState(() => _pressed = false),
       onTapUp: (_) => setState(() => _pressed = false),
       onTap: () {
-        HapticFeedback.selectionClick();
+        HapticService.tap();
         if (widget.onTap != null) {
           widget.onTap!();
         }

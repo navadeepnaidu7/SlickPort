@@ -1,7 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../../../../core/haptics/haptic_service.dart';
 import '../dashboard_screen.dart';
 
 class ViewPickerExpanded extends StatefulWidget {
@@ -188,7 +189,7 @@ class _ViewPickerExpandedState extends State<ViewPickerExpanded>
                         return GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: () {
-                            HapticFeedback.selectionClick();
+                            HapticService.select();
                             widget.onSelectMode(mode);
                           },
                           child: Container(

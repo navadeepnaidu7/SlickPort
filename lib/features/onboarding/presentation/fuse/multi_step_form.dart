@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../domain/onboarding_content.dart';
+import '../../../../core/haptics/haptic_service.dart';
 import '../../../../core/motion/smooth_curves.dart';
 import 'widgets/accordion_step.dart';
 
@@ -208,7 +209,10 @@ class _MultiStepFormState extends State<MultiStepForm> {
                             child: GestureDetector(
                               onTap: _isGoogleLoggingIn
                                   ? null
-                                  : () => _handleAuthFinished(isGoogle: true),
+                                  : () {
+                                      HapticService.tap();
+                                      _handleAuthFinished(isGoogle: true);
+                                    },
                               child: AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 200),
                                 child: _isGoogleLoggingIn
@@ -252,7 +256,10 @@ class _MultiStepFormState extends State<MultiStepForm> {
                           child: TextButton(
                             onPressed: _isGoogleLoggingIn
                                 ? null
-                                : () => _handleAuthFinished(isGoogle: false),
+                                : () {
+                                    HapticService.tap();
+                                    _handleAuthFinished(isGoogle: false);
+                                  },
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),

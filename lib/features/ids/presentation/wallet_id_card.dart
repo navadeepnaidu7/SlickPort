@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/haptics/haptic_service.dart';
 import '../../../core/sound/sound_service.dart';
 
 import '../domain/id_document.dart';
@@ -72,7 +72,7 @@ class _WalletIdCardState extends State<WalletIdCard>
 
   void _handleTap() {
     if (_dragging) return;
-    HapticFeedback.mediumImpact();
+    HapticService.flip();
     SoundService.flip();
     if (_showBack) {
       _flipCtrl.reverse();
@@ -120,7 +120,8 @@ class _WalletIdCardState extends State<WalletIdCard>
           child: GestureDetector(
             onTap: _handleTap,
             onLongPress: () {
-              HapticFeedback.heavyImpact();
+              HapticService.longPress();
+              SoundService.longPress();
               widget.onLongPress?.call();
             },
             onPanStart: _onPanStart,

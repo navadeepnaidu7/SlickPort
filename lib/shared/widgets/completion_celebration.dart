@@ -2,8 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/haptics/haptic_service.dart';
 import '../../core/motion/entry_reveal.dart';
 import '../../core/motion/smooth_curves.dart';
+import '../../core/sound/sound_service.dart';
 import 'bounce_tap.dart';
 
 class SaveCompletionContent {
@@ -102,6 +104,8 @@ class _CompletionCelebrationState extends State<CompletionCelebration>
     if (!mounted) return;
     setState(() => _isCompleted = true);
     _spinController.stop();
+    await HapticService.success();
+    SoundService.success();
     await _successController.forward();
 
     final Duration? autoComplete = widget.autoCompleteAfterSuccess;
