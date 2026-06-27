@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/assets/app_assets.dart';
 import '../../../core/haptics/haptic_service.dart';
 import '../../../core/sound/sound_service.dart';
+import '../../../shared/widgets/card_touch_layer.dart';
 
 import '../../passport/domain/passport_profile.dart';
 
@@ -96,29 +97,6 @@ class _WalletPassportCardState extends State<WalletPassportCard>
     _showBack = !_showBack;
   }
 
-  void _onPanStart(DragStartDetails d) {
-    _dragging = false;
-  }
-
-  void _onPanUpdate(DragUpdateDetails d) {
-    final RenderBox? box = context.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    final Size size = box.size;
-    _dragging = true;
-    _tiltX.value =
-        ((d.localPosition.dy / size.height) - 0.5).clamp(-0.5, 0.5);
-    _tiltY.value =
-        -((d.localPosition.dx / size.width) - 0.5).clamp(-0.5, 0.5);
-  }
-
-  void _onPanEnd(DragEndDetails d) {
-    _tiltX.value = 0;
-    _tiltY.value = 0;
-    Future<void>.delayed(const Duration(milliseconds: 50), () {
-      _dragging = false;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     const double cardHeight = 570.0;
@@ -126,16 +104,18 @@ class _WalletPassportCardState extends State<WalletPassportCard>
     return SizedBox(
       height: cardHeight,
       width: double.infinity,
-      child: GestureDetector(
+      child: CardTouchLayer(
+        tiltX: _tiltX,
+        tiltY: _tiltY,
         onTap: _handleTap,
-        onLongPress: () {
-          HapticService.longPress();
-          SoundService.longPress();
-          widget.onLongPress?.call();
-        },
-        onPanStart: _onPanStart,
-        onPanUpdate: _onPanUpdate,
-        onPanEnd: _onPanEnd,
+        onDragStateChanged: (bool dragging) => _dragging = dragging,
+        onLongPress: widget.onLongPress == null
+            ? null
+            : () {
+                HapticService.longPress();
+                SoundService.longPress();
+                widget.onLongPress!();
+              },
         child: AnimatedBuilder(
               animation: _flipAnim,
               builder: (context, _) {
