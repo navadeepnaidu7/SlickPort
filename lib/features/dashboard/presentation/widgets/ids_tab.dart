@@ -1,7 +1,7 @@
 import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 
-import '../../../../shared/widgets/roll_page_stack.dart';
+import '../../../../shared/widgets/rolling_card_page.dart';
 import '../../../ids/domain/id_document.dart';
 import '../../../ids/presentation/wallet_id_card.dart';
 import '../../../passport/domain/passport_profile.dart';
@@ -30,7 +30,6 @@ class IdsTab extends StatefulWidget {
 
 class _IdsTabState extends State<IdsTab> {
   late final PageController _pageCtrl;
-  double _page = 0;
 
   @override
   void initState() {
@@ -47,8 +46,7 @@ class _IdsTabState extends State<IdsTab> {
   }
 
   void _onScroll() {
-    setState(() => _page = _pageCtrl.page ?? 0);
-    widget.pageNotifier.value = _page;
+    widget.pageNotifier.value = _pageCtrl.page ?? 0;
   }
 
   @override
@@ -93,21 +91,25 @@ class _IdsTabState extends State<IdsTab> {
         PageView.builder(
           controller: _pageCtrl,
           scrollDirection: Axis.vertical,
-          physics: const BouncingScrollPhysics(),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           itemCount: items.length,
           itemBuilder: (context, index) {
             final item = items[index];
-            final double delta = (_page - index).clamp(-1.0, 1.0);
-            return RollPageStack(
-              delta: delta,
+            return RollingCardPage(
+              controller: _pageCtrl,
+              index: index,
               padding: EdgeInsets.fromLTRB(20, 8, 28, fabClearance),
               child: item is PassportProfile
                   ? WalletPassportCard(
+                      key: ValueKey<String>('passport-${item.passportNumber}'),
                       profile: item,
                       onLongPress: () => widget.onDeletePassport(item),
                     )
                   : WalletIdCard(
-                      document: item as IdDocument,
+                      key: ValueKey<String>('id-${(item as IdDocument).id}'),
+                      document: item,
                       onLongPress: () => widget.onDeleteId(item),
                     ),
             );
@@ -119,7 +121,13 @@ class _IdsTabState extends State<IdsTab> {
             top: 0,
             bottom: fabClearance,
             child: Center(
-              child: DotIndicator(count: items.length, page: _page),
+              child: AnimatedBuilder(
+                animation: _pageCtrl,
+                builder: (context, _) {
+                  final double page = _pageCtrl.page ?? 0;
+                  return DotIndicator(count: items.length, page: page);
+                },
+              ),
             ),
           ),
       ],

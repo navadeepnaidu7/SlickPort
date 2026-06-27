@@ -3,7 +3,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import '../../../core/haptics/haptic_service.dart';
 import '../../../shared/widgets/bounce_tap.dart';
-import '../../../shared/widgets/roll_page_stack.dart';
+import '../../../shared/widgets/rolling_card_page.dart';
 import 'wallet_ticket_card.dart';
 
 class TicketsTab extends StatefulWidget {
@@ -15,24 +15,19 @@ class TicketsTab extends StatefulWidget {
 
 class _TicketsTabState extends State<TicketsTab> {
   int _filterIndex = 0;
-  late PageController _pageCtrl;
-  double _page = 0;
+  late final PageController _pageCtrl;
 
   @override
   void initState() {
     super.initState();
     _pageCtrl = PageController();
-    _pageCtrl.addListener(_onScroll);
   }
 
   @override
   void dispose() {
-    _pageCtrl.removeListener(_onScroll);
     _pageCtrl.dispose();
     super.dispose();
   }
-
-  void _onScroll() => setState(() => _page = _pageCtrl.page ?? 0);
 
   List<MockTicket> get _filtered => mockTickets
       .where((t) => _filterIndex == 0
@@ -61,7 +56,6 @@ class _TicketsTabState extends State<TicketsTab> {
                   HapticService.select();
                   setState(() {
                     _filterIndex = 0;
-                    _page = 0;
                     _pageCtrl.jumpToPage(0);
                   });
                 },
@@ -74,7 +68,6 @@ class _TicketsTabState extends State<TicketsTab> {
                   HapticService.select();
                   setState(() {
                     _filterIndex = 1;
-                    _page = 0;
                     _pageCtrl.jumpToPage(0);
                   });
                 },
@@ -94,14 +87,20 @@ class _TicketsTabState extends State<TicketsTab> {
                     PageView.builder(
                       controller: _pageCtrl,
                       scrollDirection: Axis.vertical,
-                      physics: const BouncingScrollPhysics(),
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
                       itemCount: filtered.length,
                       itemBuilder: (context, index) {
-                        final double delta = (_page - index).clamp(-1.0, 1.0);
-                        return RollPageStack(
-                          delta: delta,
+                        final ticket = filtered[index];
+                        return RollingCardPage(
+                          controller: _pageCtrl,
+                          index: index,
                           padding: EdgeInsets.fromLTRB(20, 0, 28, fabClearance),
-                          child: WalletTicketCard(ticket: filtered[index]),
+                          child: WalletTicketCard(
+                            key: ValueKey<String>(ticket.id),
+                            ticket: ticket,
+                          ),
                         );
                       },
                     ),
@@ -112,9 +111,15 @@ class _TicketsTabState extends State<TicketsTab> {
                         top: 0,
                         bottom: fabClearance,
                         child: Center(
-                          child: _DotIndicator(
-                            count: filtered.length,
-                            page: _page,
+                          child: AnimatedBuilder(
+                            animation: _pageCtrl,
+                            builder: (context, _) {
+                              final double page = _pageCtrl.page ?? 0;
+                              return _DotIndicator(
+                                count: filtered.length,
+                                page: page,
+                              );
+                            },
                           ),
                         ),
                       ),

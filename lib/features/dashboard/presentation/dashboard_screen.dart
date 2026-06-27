@@ -22,7 +22,9 @@ import '../application/wallet_order_provider.dart';
 import 'widgets/add_fab.dart';
 import 'widgets/add_item_sheet.dart';
 import 'widgets/dashboard_header.dart';
+import 'widgets/easter_egg_constants.dart';
 import 'widgets/easter_egg_drawer.dart';
+import 'widgets/easter_egg_sheet_motion.dart';
 import 'widgets/ids_tab.dart';
 import 'widgets/manage_cards_view.dart';
 import 'widgets/pill_tab_bar.dart';
@@ -95,11 +97,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     });
     _easterEggCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 380),
+      duration: kEasterEggSnapDuration,
     );
     _easterEggCtrl.addListener(() {
       if (!_isDragging) {
-        _easterEggOffset.value = _easterEggCtrl.value * 246.0;
+        _easterEggOffset.value = _easterEggCtrl.value * kEasterEggPanelHeight;
         _dragOffset = _easterEggOffset.value;
       }
     });
@@ -122,15 +124,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   void _handleDragUpdate(DragUpdateDetails details) {
     _isDragging = true;
     final double delta = details.primaryDelta ?? 0;
-    // Scale delta down to 0.65 to make dragging stiffer and more controlled
-    _dragOffset += delta * 0.65;
-    
-    final double panelHeight = 246.0;
+    _dragOffset += delta * kEasterEggDragDamping;
+
+    final double panelHeight = kEasterEggPanelHeight;
     double effective = _dragOffset;
     if (_dragOffset > panelHeight) {
       final double overshoot = _dragOffset - panelHeight;
-      // Stiffer rubber banding factor of 0.12 past the panel height
-      effective = panelHeight + (overshoot * 0.12);
+      effective = panelHeight + (overshoot * kEasterEggDrawerOvershootFactor);
     } else if (_dragOffset < 0) {
       effective = 0;
     }
@@ -139,17 +139,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   void _handleDragEnd(DragEndDetails details) {
     _isDragging = false;
-    final double panelHeight = 246.0;
+    final double panelHeight = kEasterEggPanelHeight;
     final double currentOffset = _easterEggOffset.value;
-    
-    if (currentOffset > 110.0) {
-      final double startProgress = (currentOffset / panelHeight).clamp(0.0, 1.0);
-      _easterEggCtrl.value = startProgress;
-      _easterEggCtrl.animateTo(1.0, curve: Curves.easeOutBack);
-    } else {
-      final double startProgress = (currentOffset / panelHeight).clamp(0.0, 1.0);
-      _easterEggCtrl.value = startProgress;
-      _easterEggCtrl.animateTo(0.0, curve: Curves.easeOut);
+    final double velocityY = details.velocity.pixelsPerSecond.dy;
+    final bool open = EasterEggSheetMotion.shouldSnapOpen(
+      offsetY: currentOffset,
+      velocityY: velocityY,
+    );
+
+    final double startProgress =
+        (currentOffset / panelHeight).clamp(0.0, 1.0);
+    _easterEggCtrl.stop();
+    _easterEggCtrl.value = startProgress;
+    _easterEggCtrl.animateTo(
+      open ? 1.0 : 0.0,
+      curve: open ? Curves.easeOutQuint : Curves.easeOutCubic,
+    );
+
+    if (open && startProgress < 0.9) {
+      HapticService.select();
+    } else if (!open && startProgress > 0.1) {
+      HapticService.tap();
     }
   }
 
@@ -384,36 +394,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ValueListenableBuilder<double>(
               valueListenable: _easterEggOffset,
               builder: (context, offsetY, drawerWidget) {
-                final double panelHeight = 246.0;
-                // Parallax background: offset starts at -30px when closed, reaches 0px when fully open.
-                final double drawerTop = -30.0 + (30.0 * (offsetY / panelHeight).clamp(0.0, 1.0));
+                final EasterEggSheetMotion motion =
+                    EasterEggSheetMotion.lerpFromOffset(offsetY);
 
                 return Stack(
                   clipBehavior: Clip.none,
                   children: [
                     // 1. Easter Egg Drawer (positioned in background with parallax)
                     Positioned(
-                      top: drawerTop,
+                      top: motion.drawerTop,
                       left: 0,
                       right: 0,
-                      height: panelHeight + 150.0,
+                      height: kEasterEggPanelHeight + 150.0,
                       child: drawerWidget!,
                     ),
                     // 2. Main Sliding Sheet (translated down, rounded at top)
                     Positioned.fill(
                       child: Transform.translate(
-                        offset: Offset(0, offsetY),
-                        child: Container(
+                        offset: Offset(0, motion.sheetOffsetY),
+                        child: Transform.scale(
+                          scale: motion.sheetScale,
+                          alignment: Alignment.topCenter,
+                          child: Container(
                           clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
                             color: Theme.of(context).scaffoldBackgroundColor,
-                            borderRadius: offsetY > 0
-                                ? const BorderRadius.vertical(top: Radius.circular(44))
-                                : BorderRadius.zero,
-                            boxShadow: offsetY > 0
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(motion.topRadius),
+                            ),
+                            boxShadow: motion.shadowOpacity > 0
                                 ? [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.15),
+                                      color: Colors.black
+                                          .withValues(alpha: motion.shadowOpacity),
                                       blurRadius: 16,
                                       offset: const Offset(0, -6),
                                     ),
@@ -422,6 +435,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           ),
                           child: Stack(
                             children: [
+                              Positioned(
+                                top: 8,
+                                left: 0,
+                                right: 0,
+                                child: IgnorePointer(
+                                  child: Opacity(
+                                    opacity: motion.pullPillOpacity,
+                                    child: Center(
+                                      child: Container(
+                                        width: 36,
+                                        height: 4,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? Colors.white
+                                                  .withValues(alpha: 0.28)
+                                              : Colors.black
+                                                  .withValues(alpha: 0.16),
+                                          borderRadius:
+                                              BorderRadius.circular(99),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                               // Background mesh moving with the sheet
                               RepaintBoundary(
                                 child: WalletBackdrop(
@@ -579,6 +618,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                             ],
                           ),
                         ),
+                        ),
                       ),
                     ),
                   ],
@@ -598,17 +638,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ),
 
             // ── Bottom island bar ────────────────────────────────────────
-            ValueListenableBuilder<DashboardViewMode>(
-              valueListenable: _viewMode,
-              builder: (context, mode, child) {
-                final bool isHome = mode == DashboardViewMode.home;
-                return AnimatedPositioned(
-                  duration: const Duration(milliseconds: 320),
-                  curve: Curves.easeInOutCubic,
-                  bottom: isHome ? 0 : -100,
-                  left: 0,
-                  right: 0,
-                  child: child!,
+            ValueListenableBuilder<double>(
+              valueListenable: _easterEggOffset,
+              builder: (context, offsetY, pillChild) {
+                final EasterEggSheetMotion motion =
+                    EasterEggSheetMotion.lerpFromOffset(offsetY);
+                return ValueListenableBuilder<DashboardViewMode>(
+                  valueListenable: _viewMode,
+                  builder: (context, mode, child) {
+                    final bool isHome = mode == DashboardViewMode.home;
+                    return AnimatedPositioned(
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeInOutCubic,
+                      bottom: isHome ? 0 : -100,
+                      left: 0,
+                      right: 0,
+                      child: Transform.translate(
+                        offset: Offset(0, motion.pillBarOffsetY),
+                        child: Opacity(
+                          opacity: motion.pillBarOpacity,
+                          child: child,
+                        ),
+                      ),
+                    );
+                  },
+                  child: pillChild,
                 );
               },
               child: Padding(
