@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/assets/app_assets.dart';
 import '../../../core/haptics/haptic_service.dart';
 import '../../../core/sound/sound_service.dart';
 
@@ -273,7 +274,7 @@ class _CardFront extends StatelessWidget {
                 child: Opacity(
                   opacity: 0.07,
                   child: SvgPicture.asset(
-                    'assets/identity/Ashoka_Chakra.svg',
+                    AppAssets.passportAshokaChakra,
                     width: 280,
                   ),
                 ),
@@ -318,7 +319,7 @@ class _CardFront extends StatelessWidget {
                             Color(0xFFD4A843),
                             BlendMode.srcIn,
                           ),
-                          child: Image.asset('assets/identity/emblem_32.png', fit: BoxFit.contain),
+                          child: Image.asset(AppAssets.passportEmblemStandard, fit: BoxFit.contain),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -609,7 +610,7 @@ class _CardBack extends StatelessWidget {
                 child: Opacity(
                   opacity: 0.18,
                   child: SvgPicture.asset(
-                    'assets/identity/Ashoka_Chakra.svg',
+                    AppAssets.passportAshokaChakra,
                     width: 220,
                   ),
                 ),
@@ -650,7 +651,7 @@ class _CardBack extends StatelessWidget {
                               Color(0xFFD4A843),
                               BlendMode.srcIn,
                             ),
-                            child: Image.asset('assets/identity/emblem_22.png', width: 22, height: 22, fit: BoxFit.contain),
+                            child: Image.asset(AppAssets.passportEmblemCompact, width: 22, height: 22, fit: BoxFit.contain),
                           ),
                           const SizedBox(width: 8),
                           const Text(
@@ -879,7 +880,7 @@ class _EmblemOval extends StatelessWidget {
           BlendMode.srcIn,
         ),
         child: Image.asset(
-          'assets/identity/emblem_140.png',
+          AppAssets.passportEmblemLarge,
           width: 140,
           height: 140,
           fit: BoxFit.contain,
