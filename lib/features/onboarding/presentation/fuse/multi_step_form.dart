@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../domain/onboarding_content.dart';
+import '../../../../core/assets/app_assets.dart';
 import '../../../../core/haptics/haptic_service.dart';
 import '../../../../core/motion/smooth_curves.dart';
 import 'widgets/accordion_step.dart';
@@ -240,7 +241,7 @@ class _MultiStepFormState extends State<MultiStepForm> {
                                         ),
                                       )
                                     : SvgPicture.asset(
-                                        'assets/identity/android_dark_rd_SI.svg',
+                                        AppAssets.googleSignInButton,
                                         key: const ValueKey<String>('google_button'),
                                         height: 54,
                                         width: 236.25,

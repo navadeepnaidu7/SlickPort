@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/assets/app_assets.dart';
 import '../../../core/haptics/haptic_service.dart';
 import '../../../core/sound/sound_service.dart';
 
@@ -677,7 +678,7 @@ class _AadhaarFront extends StatelessWidget {
                             width: 48,
                             height: 48,
                             child: SvgPicture.asset(
-                              'assets/identity/Aadhaar.svg',
+                              AppAssets.aadhaarLogo,
                               fit: BoxFit.contain,
                             ),
                           ),
@@ -1094,7 +1095,7 @@ class _CardBack extends StatelessWidget {
                         width: 34,
                         height: 34,
                         child: SvgPicture.asset(
-                          'assets/identity/Aadhaar.svg',
+                          AppAssets.aadhaarLogo,
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -1531,9 +1532,9 @@ class _EmblemPng extends StatelessWidget {
 
   String get _asset {
     switch (size) {
-      case _EmblemSize.watermark: return 'assets/identity/emblem_120.png';
-      case _EmblemSize.header:    return 'assets/identity/emblem_34.png';
-      case _EmblemSize.hologram:  return 'assets/identity/emblem_28.png';
+      case _EmblemSize.watermark: return AppAssets.passportEmblemWatermark;
+      case _EmblemSize.header:    return AppAssets.passportEmblemHeader;
+      case _EmblemSize.hologram:  return AppAssets.passportEmblemHologram;
     }
   }
 

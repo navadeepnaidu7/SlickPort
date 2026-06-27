@@ -1,0 +1,58 @@
+import 'package:flutter/foundation.dart';
+
+/// Central registry for bundled asset paths.
+///
+/// Layout:
+/// - `assets/auth/` — third-party sign-in branding (official vendor filenames)
+/// - `assets/wallet/` — in-app card visuals grouped by document type
+abstract final class AppAssets {
+  AppAssets._();
+
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+
+  /// Google Sign-In button assets (dark, rounded). Names follow Google branding.
+  static const String googleSignInAndroid =
+      'assets/auth/google/android_dark_rd_SI.svg';
+  static const String googleSignInIos =
+      'assets/auth/google/ios_dark_rd_SI.svg';
+  static const String googleSignInIosUnavailable =
+      'assets/auth/google/ios_dark_rd_na.svg';
+
+  /// Platform-appropriate Google Sign-In button for the current target.
+  static String get googleSignInButton {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return googleSignInIos;
+      default:
+        return googleSignInAndroid;
+    }
+  }
+
+  // ── Wallet: passport ───────────────────────────────────────────────────────
+
+  static const String passportAshokaChakra =
+      'assets/wallet/passport/ashoka_chakra.svg';
+
+  /// Full-resolution source SVG (437 KB). Prefer [passportEmblem*] PNGs at runtime.
+  static const String passportEmblemOfIndia =
+      'assets/wallet/passport/emblem_of_india.svg';
+
+  /// Pre-rasterized emblem PNGs sized for specific card placements.
+  static const String passportEmblemHologram =
+      'assets/wallet/passport/emblems/emblem_28.png';
+  static const String passportEmblemHeader =
+      'assets/wallet/passport/emblems/emblem_34.png';
+  static const String passportEmblemCompact =
+      'assets/wallet/passport/emblems/emblem_22.png';
+  static const String passportEmblemStandard =
+      'assets/wallet/passport/emblems/emblem_32.png';
+  static const String passportEmblemWatermark =
+      'assets/wallet/passport/emblems/emblem_120.png';
+  static const String passportEmblemLarge =
+      'assets/wallet/passport/emblems/emblem_140.png';
+
+  // ── Wallet: Aadhaar ────────────────────────────────────────────────────────
+
+  static const String aadhaarLogo = 'assets/wallet/aadhaar/logo.svg';
+}
