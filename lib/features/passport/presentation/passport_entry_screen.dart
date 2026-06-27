@@ -10,6 +10,7 @@ import '../../../core/motion/entry_reveal.dart';
 import '../../../core/sound/sound_service.dart';
 import '../../../shared/widgets/bounce_tap.dart';
 import '../../../shared/widgets/apple_sheet.dart';
+import '../../../shared/widgets/completion_celebration.dart';
 import '../../../shared/widgets/studio_field.dart';
 import '../../mrz_scanner/domain/mrz_result.dart';
 import '../../mrz_scanner/presentation/mrz_scanner_screen.dart';
@@ -229,24 +230,7 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
     // Save to global list for Dashboard
     ref.read(passportListProvider.notifier).addPassport(profile);
 
-    // Show full screen success overlay
-    showGeneralDialog<void>(
-      context: context,
-      barrierColor: Colors.transparent,
-      pageBuilder: (context, animation, secondaryAnimation) => const _SuccessOverlay(),
-      transitionDuration: const Duration(milliseconds: 300),
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(opacity: animation, child: child);
-      },
-    );
-
-    // Give it a brief moment to show the updated sheet safely, then pop both the overlay and screen.
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (mounted) {
-        Navigator.of(context).pop(); // pop success overlay
-        Navigator.of(context).pop(); // pop entry screen back to dashboard
-      }
-    });
+    showWalletSaveCelebration(context);
   }
 
   @override
@@ -803,56 +787,6 @@ class _CircleButton extends StatelessWidget {
               color: isDark ? Colors.white : const Color(0xFF07111F),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SuccessOverlay extends StatelessWidget {
-  const _SuccessOverlay();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF34C759),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.25),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_rounded,
-                color: Colors.white,
-                size: 60,
-              ),
-            ),
-            const SizedBox(height: 32),
-            const Text(
-              'Passport Saved!',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Securely added to your wallet.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.9),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
         ),
       ),
     );

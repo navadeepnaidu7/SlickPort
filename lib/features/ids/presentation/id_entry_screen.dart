@@ -12,6 +12,7 @@ import '../../../core/motion/entry_reveal.dart';
 import '../../../core/sound/sound_service.dart';
 import '../../../shared/widgets/bounce_tap.dart';
 import '../../../shared/widgets/apple_sheet.dart';
+import '../../../shared/widgets/completion_celebration.dart';
 import '../../../shared/widgets/studio_field.dart';
 import '../application/id_draft_controller.dart';
 import '../application/id_list_provider.dart';
@@ -138,21 +139,7 @@ class _IdEntryScreenState extends ConsumerState<IdEntryScreen> {
     SoundService.success();
     ref.read(idListProvider.notifier).addDocument(doc);
 
-    showGeneralDialog<void>(
-      context: context,
-      barrierColor: Colors.transparent,
-      pageBuilder: (ctx, anim1, anim2) => _SuccessOverlay(type: widget.type),
-      transitionDuration: const Duration(milliseconds: 300),
-      transitionBuilder: (ctx, anim1, anim2, child) =>
-          FadeTransition(opacity: anim1, child: child),
-    );
-
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (mounted) {
-        Navigator.of(context).pop(); // pop overlay
-        Navigator.of(context).pop(); // pop entry screen
-      }
-    });
+    showWalletSaveCelebration(context);
   }
 
   Future<void> _selectDate(TextEditingController ctrl) async {
@@ -586,51 +573,4 @@ class _CircleButton extends StatelessWidget {
   }
 }
 
-class _SuccessOverlay extends StatelessWidget {
-  const _SuccessOverlay({required this.type});
-  final IdDocumentType type;
 
-  @override
-  Widget build(BuildContext context) {
-    final isPan = type == IdDocumentType.pan;
-    return Scaffold(
-      backgroundColor:
-          isPan ? const Color(0xFF1C3252) : const Color(0xFF003F87),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_rounded, color: Colors.white, size: 60),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              isPan ? 'PAN Card Saved!' : 'Aadhaar Card Saved!',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Securely added to your wallet.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.9),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
