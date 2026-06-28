@@ -6,6 +6,16 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../shared/widgets/bounce_tap.dart';
 import '../dashboard_screen.dart' show DashboardViewMode;
 
+TextStyle dashboardNavTitleStyle(Color ink, {required bool selected}) {
+  return GoogleFonts.inter(
+    color: selected ? ink : ink.withValues(alpha: 0.38),
+    fontSize: 32,
+    fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+    letterSpacing: -1.2,
+    height: 1.0,
+  );
+}
+
 class GlassIconButton extends StatefulWidget {
   const GlassIconButton({
     super.key,
@@ -119,12 +129,7 @@ class DashboardHeader extends StatelessWidget {
                   children: [
                     Text(
                       titleText,
-                      style: GoogleFonts.inter(
-                        color: ink,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -1.2,
-                      ),
+                      style: dashboardNavTitleStyle(ink, selected: true),
                     ),
                     const SizedBox(width: 8),
                     AnimatedRotation(

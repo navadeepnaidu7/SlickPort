@@ -67,6 +67,11 @@ flutter:
 
   assets:
     - assets/auth/google/
+    - assets/navbar/
+    - assets/navbar/alt/ids_filled.svg
+    - assets/navbar/alt/ids_unfilled.svg
+    - assets/navbar/alt/passes_filled.svg
+    - assets/navbar/alt/passes_unfilled.svg
     - assets/wallet/passport/
     - assets/wallet/passport/emblems/
     - assets/wallet/aadhaar/

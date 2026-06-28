@@ -28,7 +28,7 @@ import 'widgets/easter_egg_sheet_motion.dart';
 import 'widgets/ids_tab.dart';
 import 'widgets/manage_cards_view.dart';
 import 'widgets/pill_tab_bar.dart';
-import 'widgets/settings_sheet.dart';
+import 'settings_screen.dart';
 import 'widgets/trash_view.dart';
 import 'widgets/view_picker.dart';
 import 'widgets/wallet_backdrop.dart';
@@ -276,14 +276,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
-  void _showSettingsSheet() {
+  void _openSettings() {
     HapticService.confirm();
-    showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const SettingsSheet(),
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
     );
   }
 
@@ -461,13 +457,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                   ),
                                 ),
                               ),
-                              // Background mesh moving with the sheet
-                              RepaintBoundary(
-                                child: WalletBackdrop(
-                                  tabIndex: _tabCtrl.index,
-                                  items: items,
-                                  pageNotifier: _docPage,
-                                ),
+                              // Background: gradient orbs on Home, flat surface elsewhere
+                              ValueListenableBuilder<DashboardViewMode>(
+                                valueListenable: _viewMode,
+                                builder: (context, mode, _) {
+                                  return AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 350),
+                                    switchInCurve: Curves.easeOutCubic,
+                                    switchOutCurve: Curves.easeInCubic,
+                                    child: mode == DashboardViewMode.home
+                                        ? RepaintBoundary(
+                                            key: const ValueKey('gradient_backdrop'),
+                                            child: WalletBackdrop(
+                                              tabIndex: _tabCtrl.index,
+                                              items: items,
+                                              pageNotifier: _docPage,
+                                            ),
+                                          )
+                                        : ColoredBox(
+                                            key: ValueKey('flat_backdrop_${mode.name}'),
+                                            color: Theme.of(context).scaffoldBackgroundColor,
+                                          ),
+                                  );
+                                },
                               ),
                               // Content Column
                               SafeArea(
@@ -497,7 +509,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                                       onHomeTap: () {
                                                         _showHomeMenu.value = !_showHomeMenu.value;
                                                       },
-                                                      onAvatarTap: _showSettingsSheet,
+                                                      onAvatarTap: _openSettings,
                                                       headerTitleLink: _headerTitleLink,
                                                     );
                                                   },

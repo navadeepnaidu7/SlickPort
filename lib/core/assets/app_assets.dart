@@ -55,4 +55,16 @@ abstract final class AppAssets {
   // ── Wallet: Aadhaar ────────────────────────────────────────────────────────
 
   static const String aadhaarLogo = 'assets/wallet/aadhaar/logo.svg';
+
+  // ── Navigation bar ─────────────────────────────────────────────────────────
+
+  static const String navIdsFilled = 'assets/navbar/ids_filled.svg';
+  static const String navIdsUnfilled = 'assets/navbar/ids_unfilled.svg';
+  static const String navPassesFilled = 'assets/navbar/passes_filled.svg';
+  static const String navPassesUnfilled = 'assets/navbar/passes_unfilled.svg';
+
+  static const String navAltIdsFilled = 'assets/navbar/alt/ids_filled.svg';
+  static const String navAltIdsUnfilled = 'assets/navbar/alt/ids_unfilled.svg';
+  static const String navAltPassesFilled = 'assets/navbar/alt/passes_filled.svg';
+  static const String navAltPassesUnfilled = 'assets/navbar/alt/passes_unfilled.svg';
 }

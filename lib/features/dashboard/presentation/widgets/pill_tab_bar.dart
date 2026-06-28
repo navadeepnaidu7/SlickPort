@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/haptics/haptic_service.dart';
 
+import '../../application/nav_icon_style_provider.dart';
 import '../../application/nav_labels_provider.dart';
-import 'custom_id_card_icon.dart';
+import 'nav_bar_svg_icon.dart';
 
 class PillTabBar extends ConsumerStatefulWidget {
   const PillTabBar({super.key, required this.controller});
@@ -29,10 +30,29 @@ class _PillTabBarState extends ConsumerState<PillTabBar> {
 
   void _onTabAnim() => setState(() {});
 
+  ({double w, double h}) _idsIconSize(bool showLabels, bool isVertical) {
+    return (
+      w: showLabels ? (isVertical ? 38.0 : 42.0) : (isVertical ? 48.0 : 52.0),
+      h: showLabels ? (isVertical ? 38.0 : 36.0) : (isVertical ? 48.0 : 44.0),
+    );
+  }
+
+  ({double w, double h}) _passesIconSize(bool showLabels, bool isVertical) {
+    return (
+      w: showLabels ? (isVertical ? 36.0 : 38.0) : (isVertical ? 44.0 : 46.0),
+      h: showLabels ? (isVertical ? 36.0 : 32.0) : (isVertical ? 44.0 : 38.0),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final double t = (widget.controller.animation!.value).clamp(0.0, 1.0);
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final NavIconStyleConfig iconStyles = ref.watch(navIconStylesProvider);
+    final NavTabIconAssets idsAssets = navIdsAssetsFor(iconStyles.ids);
+    final NavTabIconAssets passesAssets = navPassesAssetsFor(iconStyles.passes);
+    final bool idsVertical = iconStyles.ids == NavIconStyle.vertical;
+    final bool passesVertical = iconStyles.passes == NavIconStyle.vertical;
 
     return Container(
       width: 250,
@@ -59,14 +79,17 @@ class _PillTabBarState extends ConsumerState<PillTabBar> {
             children: [
               TabLabel(
                 label: 'IDs',
-                iconBuilder: (context, color, selected, showLabels) {
-                  final double w = showLabels ? 32.0 : 44.0;
-                  final double h = showLabels ? 23.0 : 31.0;
-                  return CustomIdCardIcon(
-                    color: color,
-                    width: w,
-                    height: h,
-                    selected: selected,
+                iconBuilder: (context, progress, activeColor, inactiveColor, showLabels) {
+                  final ({double w, double h}) size =
+                      _idsIconSize(showLabels, idsVertical);
+                  return NavBarSvgIcon(
+                    filledAsset: idsAssets.filled,
+                    unfilledAsset: idsAssets.unfilled,
+                    activeColor: activeColor,
+                    inactiveColor: inactiveColor,
+                    width: size.w,
+                    height: size.h,
+                    progress: progress,
                   );
                 },
                 index: 0,
@@ -75,12 +98,18 @@ class _PillTabBarState extends ConsumerState<PillTabBar> {
               ),
               TabLabel(
                 label: 'Passes',
-                iconBuilder: (context, color, selected, showLabels) {
-                  final double s = showLabels ? 28.0 : 37.0;
-                  return Icon(
-                    selected ? Icons.airplane_ticket_rounded : Icons.airplane_ticket_outlined,
-                    color: color,
-                    size: s,
+                iconBuilder: (context, progress, activeColor, inactiveColor, showLabels) {
+                  final ({double w, double h}) size =
+                      _passesIconSize(showLabels, passesVertical);
+                  return NavBarSvgIcon(
+                    filledAsset: passesAssets.filled,
+                    unfilledAsset: passesAssets.unfilled,
+                    activeColor: activeColor,
+                    inactiveColor: inactiveColor,
+                    width: size.w,
+                    height: size.h,
+                    progress: progress,
+                    offsetX: passesVertical ? 3.5 : 2.0,
                   );
                 },
                 index: 1,
@@ -136,14 +165,22 @@ class TabLabel extends ConsumerWidget {
   });
 
   final String label;
-  final Widget Function(BuildContext context, Color color, bool selected, bool showLabels) iconBuilder;
+  final Widget Function(
+    BuildContext context,
+    double progress,
+    Color activeColor,
+    Color inactiveColor,
+    bool showLabels,
+  ) iconBuilder;
   final int index;
   final TabController controller;
   final double t;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bool selected = index == 0 ? t < 0.5 : t >= 0.5;
+    final double progress = index == 0
+        ? ((1 - t) * 2).clamp(0.0, 1.0)
+        : ((t - 0.5) * 2).clamp(0.0, 1.0);
     final bool showLabels = ref.watch(showNavLabelsProvider);
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -151,6 +188,7 @@ class TabLabel extends ConsumerWidget {
     final Color inactiveIconColor = const Color(0xFF8E8E93);
     final Color activeTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
     final Color inactiveTextColor = const Color(0xFF8E8E93);
+    final Color labelColor = Color.lerp(inactiveTextColor, activeTextColor, progress)!;
 
     return Expanded(
       child: GestureDetector(
@@ -159,41 +197,45 @@ class TabLabel extends ConsumerWidget {
           HapticService.select();
           controller.animateTo(index);
         },
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedSize(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOutCubic,
-                child: iconBuilder(context, selected ? activeIconColor : inactiveIconColor, selected, showLabels),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOutCubic,
+              child: iconBuilder(
+                context,
+                progress,
+                activeIconColor,
+                inactiveIconColor,
+                showLabels,
               ),
-              // Conditional Label with animated opacity transition
-              AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: showLabels ? 1.0 : 0.0,
-                curve: Curves.easeInOutCubic,
-                child: showLabels
-                    ? Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(height: 6),
-                          Text(
-                            label,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                              letterSpacing: -0.1,
-                              color: selected ? activeTextColor : inactiveTextColor,
-                            ),
+            ),
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: showLabels ? 1.0 : 0.0,
+              curve: Curves.easeInOutCubic,
+              child: showLabels
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: progress >= 0.5 ? FontWeight.w700 : FontWeight.w500,
+                            letterSpacing: -0.1,
+                            color: labelColor,
                           ),
-                        ],
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
         ),
       ),
     );
