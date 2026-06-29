@@ -1,6 +1,7 @@
 import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 
+import '../../../../core/wallet/wallet_backdrop_tilt.dart';
 import '../../../../shared/widgets/rolling_card_page.dart';
 import '../../../ids/domain/id_document.dart';
 import '../../../ids/presentation/wallet_id_card.dart';
@@ -11,18 +12,19 @@ import 'dot_indicator.dart';
 class IdsTab extends StatefulWidget {
   const IdsTab({
     super.key,
-    required this.passports,
-    required this.idDocs,
+    required this.items,
     required this.onDeletePassport,
     required this.onDeleteId,
     required this.pageNotifier,
+    this.backdropTilt,
   });
 
-  final List<PassportProfile> passports;
-  final List<IdDocument> idDocs;
+  /// Wallet items in user-defined order (passports and ID documents mixed).
+  final List<Object> items;
   final void Function(PassportProfile) onDeletePassport;
   final void Function(IdDocument) onDeleteId;
   final ValueNotifier<double> pageNotifier;
+  final WalletBackdropTilt? backdropTilt;
 
   @override
   State<IdsTab> createState() => _IdsTabState();
@@ -53,7 +55,7 @@ class _IdsTabState extends State<IdsTab> {
   Widget build(BuildContext context) {
     final double fabClearance =
         MediaQuery.of(context).padding.bottom + 16 + 58 + 20;
-    final items = <Object>[...widget.passports, ...widget.idDocs];
+    final items = widget.items;
     if (items.isEmpty) {
       return Center(
         child: Padding(
@@ -101,17 +103,21 @@ class _IdsTabState extends State<IdsTab> {
               controller: _pageCtrl,
               index: index,
               padding: EdgeInsets.fromLTRB(20, 8, 28, fabClearance),
-              child: item is PassportProfile
-                  ? WalletPassportCard(
-                      key: ValueKey<String>('passport-${item.passportNumber}'),
-                      profile: item,
-                      onLongPress: () => widget.onDeletePassport(item),
-                    )
-                  : WalletIdCard(
-                      key: ValueKey<String>('id-${(item as IdDocument).id}'),
-                      document: item,
-                      onLongPress: () => widget.onDeleteId(item),
-                    ),
+              child: switch (item) {
+                PassportProfile profile => WalletPassportCard(
+                    key: ValueKey<String>('passport-${profile.id}'),
+                    profile: profile,
+                    backdropTilt: widget.backdropTilt,
+                    onLongPress: () => widget.onDeletePassport(profile),
+                  ),
+                IdDocument document => WalletIdCard(
+                    key: ValueKey<String>('id-${document.id}-${document.type.name}'),
+                    document: document,
+                    backdropTilt: widget.backdropTilt,
+                    onLongPress: () => widget.onDeleteId(document),
+                  ),
+                _ => const SizedBox.shrink(),
+              },
             );
           },
         ),

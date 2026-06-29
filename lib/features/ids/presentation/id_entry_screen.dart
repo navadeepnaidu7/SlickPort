@@ -14,6 +14,7 @@ import '../../../shared/widgets/bounce_tap.dart';
 import '../../../shared/widgets/apple_sheet.dart';
 import '../../../shared/widgets/completion_celebration.dart';
 import '../../../shared/widgets/studio_field.dart';
+import '../../dashboard/application/wallet_order_provider.dart';
 import '../application/id_draft_controller.dart';
 import '../application/id_list_provider.dart';
 import '../application/id_scanner_service.dart';
@@ -166,6 +167,7 @@ class _IdEntryScreenState extends ConsumerState<IdEntryScreen> {
     HapticService.success();
     SoundService.success();
     ref.read(idListProvider.notifier).addDocument(doc);
+    ref.read(walletOrderProvider.notifier).updateOrderOnItemAdded(doc.id);
 
     showWalletSaveCelebration(context);
   }

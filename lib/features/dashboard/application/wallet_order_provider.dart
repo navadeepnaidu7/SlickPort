@@ -19,7 +19,7 @@ class WalletOrderController extends StateNotifier<List<String>> {
 
   void updateOrderOnItemAdded(String id) {
     if (!state.contains(id)) {
-      final newState = [id, ...state];
+      final newState = [...state, id];
       saveOrder(newState);
     }
   }

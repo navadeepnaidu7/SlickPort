@@ -15,6 +15,8 @@ import '../../passport/domain/passport_profile.dart';
 import '../../passport/presentation/passport_entry_screen.dart';
 import '../../tickets/presentation/tickets_tab.dart';
 import '../../tickets/presentation/wallet_ticket_card.dart';
+import '../../../core/wallet/wallet_backdrop_tilt.dart';
+import '../../../core/wallet/wallet_items.dart';
 import '../application/trash_provider.dart';
 import '../application/wallet_order_provider.dart';
 
@@ -53,6 +55,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   late final Animation<Offset> _entrySlide;
   late final TabController _tabCtrl;
   late final ValueNotifier<double> _docPage;
+  late final WalletBackdropTilt _backdropTilt;
   late final AnimationController _easterEggCtrl;
   final ValueNotifier<double> _easterEggOffset = ValueNotifier(0.0);
   final ValueNotifier<bool> _showHomeMenu = ValueNotifier(false);
@@ -76,6 +79,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     super.initState();
     _showHomeMenu.addListener(_onMenuToggle);
     _docPage = ValueNotifier(0.0);
+    _backdropTilt = WalletBackdropTilt();
     _entryCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 560),
@@ -114,6 +118,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     _entryCtrl.dispose();
     _tabCtrl.dispose();
     _docPage.dispose();
+    _backdropTilt.dispose();
     _easterEggCtrl.dispose();
     _easterEggOffset.dispose();
     _showHomeMenu.dispose();
@@ -276,6 +281,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
+  bool _ordersEqual(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   void _openSettings() {
     HapticService.confirm();
     Navigator.of(context).push(
@@ -352,31 +365,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final List<IdDocument> idDocs = ref.watch(idListProvider);
     final List<String> order = ref.watch(walletOrderProvider);
 
-    // Self-healing sync of sorting order
-    final activeIds = [...passports.map((p) => p.id), ...idDocs.map((d) => d.id)];
-    final missingFromOrder = activeIds.where((id) => !order.contains(id)).toList();
-    final noLongerActive = order.where((id) => !activeIds.contains(id)).toList();
-    if (missingFromOrder.isNotEmpty || noLongerActive.isNotEmpty) {
+    final activeIds = activeWalletItemIds(passports: passports, idDocs: idDocs);
+    final reconciledOrder = reconcileWalletOrder(order: order, activeIds: activeIds);
+    if (reconciledOrder.length != order.length ||
+        !_ordersEqual(reconciledOrder, order)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final newOrder = [...order];
-        newOrder.removeWhere((id) => noLongerActive.contains(id));
-        newOrder.insertAll(0, missingFromOrder);
-        ref.read(walletOrderProvider.notifier).saveOrder(newOrder);
+        ref.read(walletOrderProvider.notifier).saveOrder(reconciledOrder);
       });
     }
 
-    // Combine and sort
-    final List<Object> items = <Object>[...passports, ...idDocs];
-    items.sort((a, b) {
-      final String idA = a is PassportProfile ? a.id : (a as IdDocument).id;
-      final String idB = b is PassportProfile ? b.id : (b as IdDocument).id;
-      int idxA = order.indexOf(idA);
-      int idxB = order.indexOf(idB);
-      if (idxA == -1) idxA = 9999;
-      if (idxB == -1) idxB = 9999;
-      return idxA.compareTo(idxB);
-    });
+    final List<Object> items = sortWalletItems(
+      passports: passports,
+      idDocs: idDocs,
+      order: reconciledOrder,
+    );
 
     final String currentName = passports.isNotEmpty ? passports.first.name : '';
 
@@ -472,6 +475,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                               tabIndex: _tabCtrl.index,
                                               items: items,
                                               pageNotifier: _docPage,
+                                              tiltNotifier: _backdropTilt,
                                             ),
                                           )
                                         : ColoredBox(
@@ -533,11 +537,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                                   physics: const NeverScrollableScrollPhysics(),
                                                   children: [
                                                     IdsTab(
-                                                      passports: passports,
-                                                      idDocs: idDocs,
+                                                      items: items,
                                                       onDeletePassport: _showDeleteDialog,
                                                       onDeleteId: _showDeleteIdDialog,
                                                       pageNotifier: _docPage,
+                                                      backdropTilt: _backdropTilt,
                                                     ),
                                                     const TicketsTab(),
                                                   ],

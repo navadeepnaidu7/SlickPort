@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/wallet/wallet_backdrop_tilt.dart';
+
 /// Pointer-based touch layer for wallet cards.
 ///
 /// Tilt is driven through a [Listener] so vertical swipes reach the parent
@@ -15,6 +17,7 @@ class CardTouchLayer extends StatefulWidget {
     required this.onTap,
     this.onLongPress,
     this.onDragStateChanged,
+    this.backdropTilt,
     this.tapSlop = 18,
   });
 
@@ -24,6 +27,7 @@ class CardTouchLayer extends StatefulWidget {
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   final ValueChanged<bool>? onDragStateChanged;
+  final WalletBackdropTilt? backdropTilt;
   final double tapSlop;
 
   @override
@@ -46,13 +50,23 @@ class _CardTouchLayerState extends State<CardTouchLayer> {
     widget.onDragStateChanged?.call(value);
   }
 
+  void _syncBackdropTilt({required bool dragging}) {
+    widget.backdropTilt?.update(
+      tiltX: widget.tiltX.value,
+      tiltY: widget.tiltY.value,
+      isDragging: dragging,
+    );
+  }
+
   void _resetTilt() {
     if (!_tiltEngaged && widget.tiltX.value == 0 && widget.tiltY.value == 0) {
+      widget.backdropTilt?.reset();
       return;
     }
     _tiltEngaged = false;
     widget.tiltX.value = 0;
     widget.tiltY.value = 0;
+    widget.backdropTilt?.reset();
   }
 
   void _onPointerDown(PointerDownEvent event) {
@@ -109,6 +123,7 @@ class _CardTouchLayerState extends State<CardTouchLayer> {
         ((event.localPosition.dy / size.height) - 0.5).clamp(-0.5, 0.5);
     widget.tiltY.value =
         -((event.localPosition.dx / size.width) - 0.5).clamp(-0.5, 0.5);
+    _syncBackdropTilt(dragging: true);
   }
 
   void _onPointerEnd(PointerEvent event) {

@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/haptics/haptic_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/wallet/wallet_items.dart';
 
 import '../../../ids/domain/id_document.dart';
+import '../../../ids/domain/id_document_catalog.dart';
 import '../../../passport/domain/passport_profile.dart';
 import '../../application/wallet_order_provider.dart';
 
@@ -41,16 +43,14 @@ _ManageItemMeta _metaForItem(Object item) {
   final IdDocument d = item as IdDocument;
   final String firstName =
       d.holderName.isEmpty ? '' : d.holderName.split(' ').first;
-  final bool isPan = d.type == IdDocumentType.pan;
+  final descriptor = IdDocumentCatalog.descriptorFor(d.type);
 
   return _ManageItemMeta(
-    title: firstName.isEmpty
-        ? (isPan ? 'PAN Card' : 'Aadhaar Card')
-        : "$firstName's ID",
+    title: firstName.isEmpty ? descriptor.title : "$firstName's ID",
     subtitle: d.documentNumber.isEmpty ? 'No number added' : d.documentNumber,
-    typeLabel: isPan ? 'PAN' : 'Aadhaar',
+    typeLabel: descriptor.shortLabel,
     icon: CupertinoIcons.creditcard_fill,
-    iconColor: isPan ? const Color(0xFFE8A020) : const Color(0xFF34C759),
+    iconColor: descriptor.accentColor,
   );
 }
 
@@ -176,11 +176,8 @@ class ManageCardsView extends ConsumerWidget {
                         if (oldIndex < newIndex) {
                           newIndex -= 1;
                         }
-                        final List<String> currentIds = items.map((item) {
-                          return item is PassportProfile
-                              ? item.id
-                              : (item as IdDocument).id;
-                        }).toList();
+                        final List<String> currentIds =
+                            items.map(walletItemId).toList();
 
                         final String movedId = currentIds.removeAt(oldIndex);
                         currentIds.insert(newIndex, movedId);
@@ -188,9 +185,7 @@ class ManageCardsView extends ConsumerWidget {
                       },
                       itemBuilder: (context, index) {
                         final item = items[index];
-                        final String id = item is PassportProfile
-                            ? item.id
-                            : (item as IdDocument).id;
+                        final String id = walletItemId(item);
 
                         return ManageCardTile(
                           key: ValueKey(id),

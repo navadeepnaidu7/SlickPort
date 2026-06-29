@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/assets/app_assets.dart';
+import '../../../core/wallet/wallet_backdrop_tilt.dart';
 import '../../../core/haptics/haptic_service.dart';
 import '../../../core/sound/sound_service.dart';
 import '../../../shared/widgets/card_touch_layer.dart';
@@ -18,10 +19,12 @@ class WalletPassportCard extends StatefulWidget {
     super.key,
     required this.profile,
     this.onLongPress,
+    this.backdropTilt,
   });
 
   final PassportProfile profile;
   final VoidCallback? onLongPress;
+  final WalletBackdropTilt? backdropTilt;
 
   @override
   State<WalletPassportCard> createState() => _WalletPassportCardState();
@@ -107,6 +110,7 @@ class _WalletPassportCardState extends State<WalletPassportCard>
       child: CardTouchLayer(
         tiltX: _tiltX,
         tiltY: _tiltY,
+        backdropTilt: widget.backdropTilt,
         onTap: _handleTap,
         onDragStateChanged: (bool dragging) => _dragging = dragging,
         onLongPress: widget.onLongPress == null

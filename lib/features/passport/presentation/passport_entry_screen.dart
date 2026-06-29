@@ -16,6 +16,7 @@ import '../../mrz_scanner/domain/mrz_result.dart';
 import '../../mrz_scanner/presentation/mrz_scanner_screen.dart';
 import '../../nfc/presentation/nfc_scanner_sheet.dart' as import_nfc_sheet;
 import '../../../core/validation/document_validators.dart';
+import '../../dashboard/application/wallet_order_provider.dart';
 import '../application/passport_draft_controller.dart';
 import '../application/passport_list_provider.dart';
 import '../domain/passport_profile.dart';
@@ -274,6 +275,7 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
     SoundService.success();
     // Save to global list for Dashboard
     ref.read(passportListProvider.notifier).addPassport(profile);
+    ref.read(walletOrderProvider.notifier).updateOrderOnItemAdded(profile.id);
 
     showWalletSaveCelebration(context);
   }

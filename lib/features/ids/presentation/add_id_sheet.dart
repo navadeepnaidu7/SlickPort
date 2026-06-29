@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../shared/widgets/bounce_tap.dart';
 import '../../../shared/widgets/apple_sheet.dart';
 import '../domain/id_document.dart';
+import '../domain/id_document_catalog.dart';
 
 class AddIdSheet extends StatelessWidget {
   const AddIdSheet({super.key, required this.onSelectType});
@@ -19,8 +20,8 @@ class AddIdSheet extends StatelessWidget {
         children: [
           _IdOption(
             icon: Icons.account_balance_rounded,
-            iconColor: const Color(0xFFC6973F), // PAN warm gold
-            title: 'PAN Card',
+            iconColor: IdDocumentCatalog.descriptorFor(IdDocumentType.pan).sheetIconColor,
+            title: IdDocumentCatalog.titleFor(IdDocumentType.pan),
             subtitle: 'Permanent Account Number — Income Tax India',
             onTap: () {
               Navigator.of(context).pop();
@@ -30,8 +31,8 @@ class AddIdSheet extends StatelessWidget {
           const SizedBox(height: 12),
           _IdOption(
             icon: Icons.fingerprint_rounded,
-            iconColor: const Color(0xFF005EA6), // Aadhaar blue
-            title: 'Aadhaar Card',
+            iconColor: IdDocumentCatalog.descriptorFor(IdDocumentType.aadhaar).sheetIconColor,
+            title: IdDocumentCatalog.titleFor(IdDocumentType.aadhaar),
             subtitle: 'UIDAI 12-digit biometric identity',
             onTap: () {
               Navigator.of(context).pop();
