@@ -3,7 +3,7 @@ pid: 960
 cwd: "D:\dev\projects\passport_app"
 command: "cd D:\\dev\\projects\\passport_app && flutter analyze lib/features/dashboard/presentation/dashboard_screen.dart lib/features/dashboard/presentation/widgets/manage_cards_view.dart"
 started_at: 2026-06-28T10:55:59.756Z
-running_for_ms: 3714999  
+running_for_ms: 70599996 
 ---
 Resolving dependencies...
 Downloading packages...

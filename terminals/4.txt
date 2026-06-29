@@ -3,7 +3,7 @@ pid: 7580
 cwd: "D:\dev\projects\passport_app"
 command: "cd D:\\dev\\projects\\passport_app && flutter pub get && rg \"navbar/alt\" build/app/intermediates/flutter/debug/flutter_assets/AssetManifest.bin 2>$null; if (Test-Path \"build/app/intermediates/flutter/debug/flutter_assets/AssetManifest.json\") { Get-Content \"build/app/intermediates/flutter/assets/AssetManifest.json\" -ErrorAction SilentlyContinue }; flutter build apk --debug --target-platform android-arm64 2>&1 | Select-Object -Last 5"
 started_at: 2026-06-28T11:07:29.443Z
-running_for_ms: 3025009  
+running_for_ms: 69910005 
 ---
 Resolving dependencies...
 Downloading packages...

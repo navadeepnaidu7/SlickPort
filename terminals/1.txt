@@ -3,7 +3,7 @@ pid: 5032
 cwd: "D:\dev\projects\passport_app"
 command: "cd D:\\dev\\projects\\passport_app && flutter analyze lib/features/dashboard/presentation/widgets/pill_tab_bar.dart lib/features/dashboard/presentation/widgets/nav_bar_svg_icon.dart lib/core/assets/app_assets.dart"
 started_at: 2026-06-28T09:39:38.640Z
-running_for_ms: 8295007  
+running_for_ms: 75180007 
 ---
 
 ┌─────────────────────────────────────────────────────────┐

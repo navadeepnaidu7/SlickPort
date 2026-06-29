@@ -15,6 +15,7 @@ import '../../../shared/widgets/studio_field.dart';
 import '../../mrz_scanner/domain/mrz_result.dart';
 import '../../mrz_scanner/presentation/mrz_scanner_screen.dart';
 import '../../nfc/presentation/nfc_scanner_sheet.dart' as import_nfc_sheet;
+import '../../../core/validation/document_validators.dart';
 import '../application/passport_draft_controller.dart';
 import '../application/passport_list_provider.dart';
 import '../domain/passport_profile.dart';
@@ -115,6 +116,28 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
 
   Future<void> _startNfcScan() async {
     _syncDraft();
+
+    // Validate dates before attempting NFC (bad dates cause hard BAC failures)
+    final dateError = DocumentValidators.validatePassportDates(
+      dateOfBirth: _dateOfBirthController.text,
+      expiryDate: _expiryDateController.text,
+    );
+    if (dateError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(children: [
+            const Icon(Icons.warning_rounded, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(child: Text('Cannot scan NFC: $dateError')),
+          ]),
+          backgroundColor: const Color(0xFFFF3B30),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
     
     // Passport needs to be YYMMDD for BAC
     final dobParts = _dateOfBirthController.text.split('-');
@@ -220,6 +243,28 @@ class _PassportEntryScreenState extends ConsumerState<PassportEntryScreen> {
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // Date validation (DOB + future expiry)
+    final dateError = DocumentValidators.validatePassportDates(
+      dateOfBirth: profile.dateOfBirth,
+      expiryDate: profile.expiryDate,
+    );
+    if (dateError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(children: [
+            const Icon(Icons.warning_rounded, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(child: Text(dateError)),
+          ]),
+          backgroundColor: const Color(0xFFFF3B30),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          duration: const Duration(seconds: 4),
         ),
       );
       return;

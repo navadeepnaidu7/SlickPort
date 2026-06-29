@@ -3,7 +3,7 @@ pid: 22732
 cwd: "D:\dev\projects\passport_app"
 command: "cd D:\\dev\\projects\\passport_app && flutter pub get && dart run flutter_tools:flutter_tools 2>$null; flutter build apk --debug --target-platform android-arm64 2>&1 | Select-String -Pattern \"navbar|asset\" | Select-Object -First 20"
 started_at: 2026-06-28T11:07:09.372Z
-running_for_ms: 3045005  
+running_for_ms: 69930002 
 ---
 Resolving dependencies...
 Downloading packages...

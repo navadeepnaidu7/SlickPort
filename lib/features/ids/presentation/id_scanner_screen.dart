@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/haptics/haptic_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../shared/widgets/scanner_capture_button.dart';
 import '../application/id_scanner_service.dart';
 import '../domain/id_document.dart';
 
@@ -19,16 +20,11 @@ class IdScannerScreen extends StatefulWidget {
   State<IdScannerScreen> createState() => _IdScannerScreenState();
 }
 
-class _IdScannerScreenState extends State<IdScannerScreen>
-    with TickerProviderStateMixin {
+class _IdScannerScreenState extends State<IdScannerScreen> {
   CameraController? _controller;
   _ScanState _state = _ScanState.scanning;
   String? _capturedImagePath;
   String _errorMessage = '';
-
-  late final AnimationController _borderCtrl;
-  late final Animation<Color?> _borderColor;
-  late final AnimationController _pulseCtrl;
 
   // Preview editable controllers
   late final TextEditingController _nameCtrl;
@@ -41,16 +37,6 @@ class _IdScannerScreenState extends State<IdScannerScreen>
   @override
   void initState() {
     super.initState();
-    _borderCtrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 2))
-      ..repeat(reverse: true);
-    _borderColor = ColorTween(
-            begin: Colors.white38, end: const Color(0xFF34C759))
-        .animate(
-            CurvedAnimation(parent: _borderCtrl, curve: Curves.easeInOut));
-    _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900))
-      ..repeat(reverse: true);
 
     _nameCtrl = TextEditingController();
     _numberCtrl = TextEditingController();
@@ -65,8 +51,6 @@ class _IdScannerScreenState extends State<IdScannerScreen>
   @override
   void dispose() {
     _controller?.dispose();
-    _borderCtrl.dispose();
-    _pulseCtrl.dispose();
     _nameCtrl.dispose();
     _numberCtrl.dispose();
     _dobCtrl.dispose();
@@ -195,11 +179,8 @@ class _IdScannerScreenState extends State<IdScannerScreen>
       fit: StackFit.expand,
       children: [
         CameraPreview(_controller!),
-        AnimatedBuilder(
-          animation: _borderColor,
-          builder: (context, child) => CustomPaint(
-            painter: _CardOverlayPainter(_borderColor.value ?? Colors.white38),
-          ),
+        const CustomPaint(
+          painter: _CardOverlayPainter(),
         ),
         SafeArea(
           child: Align(
@@ -232,30 +213,7 @@ class _IdScannerScreenState extends State<IdScannerScreen>
                     ),
                   ),
                   const SizedBox(height: 28),
-                  GestureDetector(
-                    onTap: _capture,
-                    child: AnimatedBuilder(
-                      animation: _pulseCtrl,
-                      builder: (context, child) => Container(
-                        width: 70 + (_pulseCtrl.value * 4),
-                        height: 70 + (_pulseCtrl.value * 4),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withValues(
-                                  alpha: 0.3 + _pulseCtrl.value * 0.2),
-                              blurRadius: 20,
-                              spreadRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.camera_alt_rounded,
-                            color: Colors.black, size: 32),
-                      ),
-                    ),
-                  ),
+                  ScannerCaptureButton(onTap: _capture),
                 ],
               ),
             ),
@@ -484,8 +442,7 @@ class _IdScannerScreenState extends State<IdScannerScreen>
 // ── Overlay: landscape credit-card aspect ratio ───────────────────────────────
 
 class _CardOverlayPainter extends CustomPainter {
-  _CardOverlayPainter(this.borderColor);
-  final Color borderColor;
+  const _CardOverlayPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -496,7 +453,7 @@ class _CardOverlayPainter extends CustomPainter {
     final frameTop = (size.height - frameH) / 2;
     final frame = RRect.fromRectAndRadius(
       Rect.fromLTWH(hPad, frameTop, frameW, frameH),
-      const Radius.circular(14),
+      const Radius.circular(16),
     );
 
     final scrim = Paint()..color = Colors.black.withValues(alpha: 0.60);
@@ -508,41 +465,18 @@ class _CardOverlayPainter extends CustomPainter {
       scrim,
     );
 
+    // Simple minimal border — just the rounded rectangle
     canvas.drawRRect(
       frame,
       Paint()
-        ..color = borderColor
+        ..color = Colors.white.withValues(alpha: 0.75)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.5,
     );
-
-    // Corner accents
-    const cLen = 22.0;
-    const r = 14.0;
-    final cp = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
-
-    final l = frame.left;
-    final t = frame.top;
-    final ri = frame.right;
-    final b = frame.bottom;
-
-    canvas.drawLine(Offset(l + r, t), Offset(l + r + cLen, t), cp);
-    canvas.drawLine(Offset(l, t + r), Offset(l, t + r + cLen), cp);
-    canvas.drawLine(Offset(ri - r - cLen, t), Offset(ri - r, t), cp);
-    canvas.drawLine(Offset(ri, t + r), Offset(ri, t + r + cLen), cp);
-    canvas.drawLine(Offset(l + r, b), Offset(l + r + cLen, b), cp);
-    canvas.drawLine(Offset(l, b - r - cLen), Offset(l, b - r), cp);
-    canvas.drawLine(Offset(ri - r - cLen, b), Offset(ri - r, b), cp);
-    canvas.drawLine(Offset(ri, b - r - cLen), Offset(ri, b - r), cp);
   }
 
   @override
-  bool shouldRepaint(_CardOverlayPainter old) =>
-      old.borderColor != borderColor;
+  bool shouldRepaint(_CardOverlayPainter old) => false;
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────

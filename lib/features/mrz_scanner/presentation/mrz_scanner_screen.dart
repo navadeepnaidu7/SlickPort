@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/haptics/haptic_service.dart';
+import '../../../shared/widgets/scanner_capture_button.dart';
 import '../application/mrz_scanner_service.dart';
 import '../domain/mrz_result.dart';
 
@@ -18,17 +19,12 @@ class MrzScannerScreen extends StatefulWidget {
   State<MrzScannerScreen> createState() => _MrzScannerScreenState();
 }
 
-class _MrzScannerScreenState extends State<MrzScannerScreen>
-    with TickerProviderStateMixin {
+class _MrzScannerScreenState extends State<MrzScannerScreen> {
   CameraController? _controller;
   _ScanState _state = _ScanState.scanning;
   MrzResult? _result;
   String? _capturedImagePath;
   String _errorMessage = '';
-
-  late final AnimationController _borderCtrl;
-  late final Animation<Color?> _borderColor;
-  late final AnimationController _pulseCtrl;
 
   // Editable controllers for the preview state
   late final TextEditingController _nameCtrl;
@@ -41,10 +37,6 @@ class _MrzScannerScreenState extends State<MrzScannerScreen>
   @override
   void initState() {
     super.initState();
-    _borderCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
-    _borderColor = ColorTween(begin: Colors.white38, end: const Color(0xFF34C759))
-        .animate(CurvedAnimation(parent: _borderCtrl, curve: Curves.easeInOut));
-    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
 
     _nameCtrl = TextEditingController();
     _passportNumCtrl = TextEditingController();
@@ -59,8 +51,6 @@ class _MrzScannerScreenState extends State<MrzScannerScreen>
   @override
   void dispose() {
     _controller?.dispose();
-    _borderCtrl.dispose();
-    _pulseCtrl.dispose();
     _nameCtrl.dispose();
     _passportNumCtrl.dispose();
     _dobCtrl.dispose();
@@ -200,11 +190,8 @@ class _MrzScannerScreenState extends State<MrzScannerScreen>
       children: [
         CameraPreview(_controller!),
         // Scrim overlay with cutout drawn via CustomPaint
-        AnimatedBuilder(
-          animation: _borderColor,
-          builder: (context, _) => CustomPaint(
-            painter: _ScanOverlayPainter(_borderColor.value ?? Colors.white38),
-          ),
+        CustomPaint(
+          painter: const _ScanOverlayPainter(),
         ),
         // Top back button
         SafeArea(
@@ -240,28 +227,7 @@ class _MrzScannerScreenState extends State<MrzScannerScreen>
                     ),
                   ),
                   const SizedBox(height: 28),
-                  GestureDetector(
-                    onTap: _capture,
-                    child: AnimatedBuilder(
-                      animation: _pulseCtrl,
-                      builder: (context, _) => Container(
-                        width: 70 + (_pulseCtrl.value * 4),
-                        height: 70 + (_pulseCtrl.value * 4),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withValues(alpha: 0.3 + _pulseCtrl.value * 0.2),
-                              blurRadius: 20,
-                              spreadRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.camera_alt_rounded, color: Colors.black, size: 32),
-                      ),
-                    ),
-                  ),
+                  ScannerCaptureButton(onTap: _capture),
                 ],
               ),
             ),
@@ -467,8 +433,7 @@ class _MrzScannerScreenState extends State<MrzScannerScreen>
 // ── Overlay Painter ────────────────────────────────────────────────────────────
 
 class _ScanOverlayPainter extends CustomPainter {
-  _ScanOverlayPainter(this.borderColor);
-  final Color borderColor;
+  const _ScanOverlayPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -490,41 +455,16 @@ class _ScanOverlayPainter extends CustomPainter {
       ..fillType = PathFillType.evenOdd;
     canvas.drawPath(scrimPath, scrim);
 
-    // Animated border
+    // Simple minimal border — just the rounded rectangle
     final borderPaint = Paint()
-      ..color = borderColor
+      ..color = Colors.white.withValues(alpha: 0.75)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
     canvas.drawRRect(frame, borderPaint);
-
-    // Corner accents
-    const cornerLen = 24.0;
-    const r = 16.0;
-    final corners = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
-
-    final l = frame.left; final t = frame.top;
-    final ri = frame.right; final b = frame.bottom;
-
-    // top-left
-    canvas.drawLine(Offset(l + r, t), Offset(l + r + cornerLen, t), corners);
-    canvas.drawLine(Offset(l, t + r), Offset(l, t + r + cornerLen), corners);
-    // top-right
-    canvas.drawLine(Offset(ri - r - cornerLen, t), Offset(ri - r, t), corners);
-    canvas.drawLine(Offset(ri, t + r), Offset(ri, t + r + cornerLen), corners);
-    // bottom-left
-    canvas.drawLine(Offset(l + r, b), Offset(l + r + cornerLen, b), corners);
-    canvas.drawLine(Offset(l, b - r - cornerLen), Offset(l, b - r), corners);
-    // bottom-right
-    canvas.drawLine(Offset(ri - r - cornerLen, b), Offset(ri - r, b), corners);
-    canvas.drawLine(Offset(ri, b - r - cornerLen), Offset(ri, b - r), corners);
   }
 
   @override
-  bool shouldRepaint(_ScanOverlayPainter old) => old.borderColor != borderColor;
+  bool shouldRepaint(_ScanOverlayPainter old) => false;
 }
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────

@@ -31,14 +31,12 @@ class CardTouchLayer extends StatefulWidget {
 }
 
 class _CardTouchLayerState extends State<CardTouchLayer> {
-  static const double _scrollDominanceThreshold = 10;
-  static const double _tapTravelCap = 8;
-
   Offset? _downPosition;
   double _verticalTravel = 0;
   double _horizontalTravel = 0;
   bool _scrollMode = false;
   bool _dragging = false;
+  bool _tiltEngaged = false;
   Timer? _longPressTimer;
   bool _longPressTriggered = false;
 
@@ -49,6 +47,10 @@ class _CardTouchLayerState extends State<CardTouchLayer> {
   }
 
   void _resetTilt() {
+    if (!_tiltEngaged && widget.tiltX.value == 0 && widget.tiltY.value == 0) {
+      return;
+    }
+    _tiltEngaged = false;
     widget.tiltX.value = 0;
     widget.tiltY.value = 0;
   }
@@ -59,6 +61,7 @@ class _CardTouchLayerState extends State<CardTouchLayer> {
     _horizontalTravel = 0;
     _scrollMode = false;
     _longPressTriggered = false;
+    _tiltEngaged = false;
     _setDragging(false);
     _longPressTimer?.cancel();
     if (widget.onLongPress == null) return;
@@ -73,8 +76,10 @@ class _CardTouchLayerState extends State<CardTouchLayer> {
     _verticalTravel += event.delta.dy.abs();
     _horizontalTravel += event.delta.dx.abs();
 
+    // Only steal the gesture for PageView scrolling once movement clearly
+    // exceeds a tap — small vertical jitter on flip taps must not block flip.
     if (!_scrollMode &&
-        _verticalTravel > _scrollDominanceThreshold &&
+        _verticalTravel > widget.tapSlop &&
         _verticalTravel > _horizontalTravel * 1.15) {
       _scrollMode = true;
       _longPressTimer?.cancel();
@@ -91,8 +96,15 @@ class _CardTouchLayerState extends State<CardTouchLayer> {
     final RenderBox? box = context.findRenderObject() as RenderBox?;
     if (box == null) return;
 
+    final bool pastTapIntent =
+        _verticalTravel > widget.tapSlop || _horizontalTravel > widget.tapSlop;
+    _setDragging(pastTapIntent);
+
+    // Stay perfectly flat while the gesture could still be a flip tap.
+    if (!pastTapIntent) return;
+
     final Size size = box.size;
-    _setDragging(true);
+    _tiltEngaged = true;
     widget.tiltX.value =
         ((event.localPosition.dy / size.height) - 0.5).clamp(-0.5, 0.5);
     widget.tiltY.value =
@@ -101,7 +113,6 @@ class _CardTouchLayerState extends State<CardTouchLayer> {
 
   void _onPointerEnd(PointerEvent event) {
     _longPressTimer?.cancel();
-    _resetTilt();
 
     if (!_scrollMode &&
         !_longPressTriggered &&
@@ -109,11 +120,17 @@ class _CardTouchLayerState extends State<CardTouchLayer> {
         event is PointerUpEvent) {
       final double distance =
           (event.localPosition - _downPosition!).distance;
-      if (distance < widget.tapSlop &&
-          _verticalTravel < _tapTravelCap &&
-          _horizontalTravel < _tapTravelCap) {
+      final bool isTap = distance < widget.tapSlop &&
+          _verticalTravel < widget.tapSlop &&
+          _horizontalTravel < widget.tapSlop;
+      if (isTap) {
+        _setDragging(false);
         widget.onTap();
+      } else {
+        _resetTilt();
       }
+    } else {
+      _resetTilt();
     }
 
     Future<void>.delayed(const Duration(milliseconds: 50), () {

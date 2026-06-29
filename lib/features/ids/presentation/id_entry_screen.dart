@@ -18,6 +18,7 @@ import '../application/id_draft_controller.dart';
 import '../application/id_list_provider.dart';
 import '../application/id_scanner_service.dart';
 import '../domain/id_document.dart';
+import '../../../core/validation/document_validators.dart';
 import 'id_scanner_screen.dart';
 
 class IdEntryScreen extends ConsumerStatefulWidget {
@@ -135,6 +136,33 @@ class _IdEntryScreenState extends ConsumerState<IdEntryScreen> {
       return;
     }
 
+    // Date and format validation ("exceptions")
+    final isPan = doc.type == IdDocumentType.pan;
+    final typeForVal = isPan
+        ? IdDocumentTypeForValidation.pan
+        : IdDocumentTypeForValidation.aadhaar;
+
+    final validationError = DocumentValidators.validateIdForSave(
+      dateOfBirth: doc.dateOfBirth,
+      documentNumber: doc.documentNumber,
+      type: typeForVal,
+    );
+
+    if (validationError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.warning_rounded, color: Colors.white),
+          const SizedBox(width: 10),
+          Expanded(child: Text(validationError)),
+        ]),
+        backgroundColor: const Color(0xFFFF3B30),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        duration: const Duration(seconds: 4),
+      ));
+      return;
+    }
+
     HapticService.success();
     SoundService.success();
     ref.read(idListProvider.notifier).addDocument(doc);
@@ -142,13 +170,20 @@ class _IdEntryScreenState extends ConsumerState<IdEntryScreen> {
     showWalletSaveCelebration(context);
   }
 
-  Future<void> _selectDate(TextEditingController ctrl) async {
+  Future<void> _selectDate(TextEditingController ctrl, {bool adultDob = false}) async {
     DateTime init = DateTime(2000);
     if (ctrl.text.isNotEmpty) {
       try {
         init = DateTime.parse(ctrl.text);
       } catch (_) {}
     }
+
+    final now = DateTime.now();
+    DateTime maxDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
+    if (adultDob) {
+      maxDate = DateTime(now.year - 18, now.month, now.day);
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
@@ -175,7 +210,7 @@ class _IdEntryScreenState extends ConsumerState<IdEntryScreen> {
                 mode: CupertinoDatePickerMode.date,
                 initialDateTime: init,
                 minimumDate: DateTime(1900),
-                maximumDate: DateTime(2100),
+                maximumDate: maxDate,
                 onDateTimeChanged: (d) {
                   ctrl.text =
                       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -247,7 +282,7 @@ class _IdEntryScreenState extends ConsumerState<IdEntryScreen> {
                             icon: Icons.cake_rounded,
                             onChanged: _syncDraft,
                             readOnly: true,
-                            onTap: () => _selectDate(_dobCtrl)),
+                            onTap: () => _selectDate(_dobCtrl, adultDob: isPan)),
                         if (isPan)
                           StudioField(
                               controller: _fatherCtrl,
